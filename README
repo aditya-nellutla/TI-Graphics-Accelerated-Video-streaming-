@@ -1,0 +1,20 @@
+== Video Streaming using SGX with integrated Gstreamer sink plugin ==
+
+This repository contains the below folders. Refer README in documentation for build and install instructions.
+
+=== gst_plugin ===
+
+Contains gstreamer sink plugin which acts as a bridge between decoded video stream and renderer.
+
+=== bc_renderer ===
+
+Contains rendering API which uses IMG Texture streaming extension for video streaming.
+
+
+=== documentation 
+
+Basic documentation
+
+
+-aditya.n@ti.com
+

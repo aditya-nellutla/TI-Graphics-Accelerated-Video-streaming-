@@ -1,0 +1,94 @@
+HOW TO USE IT
+-------------
+Requirements:
+============
+	1) TI Linux Graphics SDK.
+	2) Open sources Gstreamer installation on TARGET Filesystem.
+	3) CMEM sources for building cmemk module.
+
+Build and Install:
+================= 
+1) Set the following Variables in <gst-plugin_dir>/src/rules.make
+	a) GSDK_ROOT = /path/to/graphics SDK root
+        b) TGTFS_PATH = /path/to/NFS/Flesystem
+        c) CMEM_DIR = /path/to/cmem/sources
+        d) GSTREAMER_SRC_DIR = /path/to/gstreamer/sources/opensource_build
+	e) CROSS_COMPILE= CROSS_COMPILE_PREFIX
+
+Note:  	i) Graphics SDK and installation instructions can be obtsined from here -
+	http://processors.wiki.ti.com/index.php/Graphics_SDK_Quick_installation_and_user_guide
+
+	ii) Platform requires bufferclass_ti.ko and cmemk.ko modules along with pvrsrv and omaplfb drivers.
+		a) User needs to separately build cmemk module and insmod with appropriate arguments.
+		b) Other modules mentioned above will be buuilt as a part of Graphics SDK.
+	
+	iii)User should separately build/install open source gstreamer (ARM only) to the TARGET FILE SYSTEM
+
+
+2) Edit <gst-plugin_dir>/autogen.sh and add host/prefix values as appropriate
+	host=toolchain-prefix
+        prefix=<GSDK_ROOT>/usr
+
+3) export PKG_CONFIG_PATH=<Gstreamer_src_dir>/pkgconfig/
+
+4) Run autogen.sh from <gst_plugin> dir
+
+5) On sucessful executio of above run -
+	a) "make" followed by "make install".
+
+	The above step installs the following -
+	libtool: install: /usr/bin/install -c .libs/libgstbc.so <TGTFS_PATH>/usr/lib/gstreamer-0.10/libgstbc.so
+	libtool: install: /usr/bin/install -c .libs/libgstbc.lai  <TGTFS_PATH>/usr/lib/gstreamer-0.10/libgstbc.la
+	libtool: install: /usr/bin/install -c .libs/libgstbc.a  <TGTFS_PATH>/usr/lib/gstreamer-0.10/libgstbc.a
+	libtool: install: chmod 644  <TGTFS_PATH>/usr/lib/gstreamer-0.10/libgstbc.a
+	libtool: install: arm-arago-linux-gnueabi-ranlib  <TGTFS_PATH>/usr/lib/gstreamer-0.10/libgstbc.a
+
+6)  Set "INST_DEST" in the <bc_renderer>/Makefile to desirable path to install the binary on <TARGET_FILESYSTEM>.
+
+6) Build the renderer sources from <bc_renderer> dir and install using -
+	a) "make" followed by "make install".
+	
+	The above step installs bcRenderer to <INST_DEST> dir.
+
+Testing:
+=======
+
+1) On target run the following to test for sucessful installation of plugin -
+	a) gst-inspect bcsink - Displays information about plugin if installed
+
+2) Create the following named pipes in the <TGTFS_PATH>/<INST_DIR> on TARGET from command line
+	a) mkfifo -m 644 gstbcsink_fifo 
+	b) mkfifo -m 644 gstbcinit_fifo
+	c) mkfifo -m 644 gstbcack_fifo
+
+Sample Pipelines:
+================
+
+1) Default video test:
+   ------------------
+Launch the following two processes on the target -
+	a) gst-launch videotestsrc ! 'video/x-raw-yuv, format=(fourcc)UYVY, width=320, height=240, framerate=24/1' ! bcsink 
+	b) ./bcRenderer
+
+	Output: You can observe videotessrc pattern on the target display in each of the four quads.
+		see <documentation>/Output.jpg
+
+2) USB Camera capture:
+   ------------------
+Launch the following two processes on the target -
+	a) gst-launch v4l2src ! 'video/x-raw-yuv, width=320,height=240,framerate=30/1' ! bcsink
+	b) ./bcRenderer
+
+	Output: You can observe videotessrc pattern on the target display in each of the four quads.
+
+3) MPEG video decode:
+   -----------------
+Launch the following two processes on the target -
+	a) gst-launch filesrc location=/sample.mpg ! mpegdemux ! ffdec_mpegvideo ! ffmpegcolorspace ! 'video/x-raw-yuv, format=(fourcc)UYVY' ! bcsink
+	b) ./bcRenderer
+         
+	Output: You can observe four videotessrc patterns on the target display in each of the four quads.
+
+Note: To switch from quad mode to full screen, edit <gst_renderer_dir>/gst_renderer.c and call drawRect() with parameter "1" from render function.
+	i.e, drawRect(1)
+

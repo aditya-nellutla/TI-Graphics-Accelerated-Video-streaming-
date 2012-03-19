@@ -1,0 +1,5 @@
+=== gst_plugin ===
+
+Contains gstremer sink plugin which acts as a bridge between decoded video stream and renderer.
+
+Please refer <documentation>/README for build and install instructions.
