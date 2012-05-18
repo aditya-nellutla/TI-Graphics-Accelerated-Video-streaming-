@@ -69,7 +69,6 @@
 /******************************************************************************
  Defines
 ******************************************************************************/
-
 static int initApplication();
 static int initView();
 static void releaseView();
@@ -81,14 +80,15 @@ static int setScene();
 #define TEXCOORD_ARRAY	3
 
 // Size of the texture we create
-#define BCSINK_FIFO_NAME "gstbcsink_fifo"
-#define BCINIT_FIFO_NAME "gstbcinit_fifo"
-#define BCACK_FIFO_NAME "gstbcack_fifo"
+char BCSINK_FIFO_NAME[]="gstbcsink_fifo0";
+char BCINIT_FIFO_NAME[]="gstbcinit_fifo0";
+char BCACK_FIFO_NAME[]="gstbcack_fifo0";
 
 static int need_to_init_egl = 1;
 int fd_bcsink_fifo_rec;
 int fd_bcinit_fifo_rec;
 int fd_bcack_fifo_rec;
+int deviceid = 0; // default device
 
 PFNGLTEXBINDSTREAMIMGPROC glTexBindStreamIMG = NULL;
 
@@ -550,8 +550,34 @@ GLfloat rect_texcoord1[6][2] =
 
 };
 
-/* Draws rectangiular quads */
-void drawRect(int isfullscreen)
+/* Draws rectangular quads */
+void drawRect0(int isfullscreen)
+{
+    glUseProgram(program);
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+
+   if(isfullscreen)
+   {	 
+	   /* Draw Quad-0 */
+	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_vertices);
+	    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, rect_texcoord);
+	    glDrawArrays(GL_TRIANGLES, 0, 6);
+   }
+   else
+   {
+	   /* Draw Quad-0 */
+	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_vertices0);
+	    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, rect_texcoord);
+	    glDrawArrays(GL_TRIANGLES, 0, 6);
+   }
+    glDisableVertexAttribArray (0);
+    glDisableVertexAttribArray (1);
+
+}
+
+/* Draws rectangular quads */
+void drawRect1(int isfullscreen)
 {
     glUseProgram(program);
     glEnableVertexAttribArray(0);
@@ -567,21 +593,58 @@ void drawRect(int isfullscreen)
    else
    {
 	   /* Draw Quad-1 */
-	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_vertices0);
-	    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, rect_texcoord);
-	    glDrawArrays(GL_TRIANGLES, 0, 6);
-
-	     /* Draw Quad-2 */
 	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_vertices1);
 	    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, rect_texcoord);
 	    glDrawArrays(GL_TRIANGLES, 0, 6);
+   }
+    glDisableVertexAttribArray (0);
+    glDisableVertexAttribArray (1);
 
-	      /* Draw Quad-3 */
+}
+
+/* Draws rectangular quads */
+void drawRect2(int isfullscreen)
+{
+    glUseProgram(program);
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+
+   if(isfullscreen)
+   {	 
+	   /* Draw Quad-2 */
+	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_vertices);
+	    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, rect_texcoord);
+	    glDrawArrays(GL_TRIANGLES, 0, 6);
+   }
+   else
+   {
+	   /* Draw Quad-2 */
 	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_vertices2);
 	    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, rect_texcoord);
 	    glDrawArrays(GL_TRIANGLES, 0, 6);
+   }
+    glDisableVertexAttribArray (0);
+    glDisableVertexAttribArray (1);
 
-	       /* Draw Quad-4 */
+}
+
+/* Draws rectangular quads */
+void drawRect3(int isfullscreen)
+{
+    glUseProgram(program);
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+
+   if(isfullscreen)
+   {	 
+	   /* Draw Quad-3 */
+	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_vertices);
+	    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, rect_texcoord);
+	    glDrawArrays(GL_TRIANGLES, 0, 6);
+   }
+   else
+   {
+	   /* Draw Quad-3 */
 	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_vertices3);
 	    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, rect_texcoord);
 	    glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -602,9 +665,33 @@ void render(int buf_index)
         glBindTexture(GL_TEXTURE_STREAM_IMG, tex_obj);
         glTexParameterf(GL_TEXTURE_STREAM_IMG, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameterf(GL_TEXTURE_STREAM_IMG, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexBindStreamIMG (0, buf_index);
-	// Pass 1 for full screen and 0 for quad mode
-        drawRect(0);
+
+	switch(deviceid)
+	{
+		case 0 :
+				glTexBindStreamIMG (0, buf_index);
+				// Pass 1 for full screen and 0 for quad mode
+				drawRect0(0);
+				break;
+		case 1 :
+				glTexBindStreamIMG (1, buf_index);
+				// Pass 1 for full screen and 0 for quad mode
+				drawRect1(0);
+				break;
+		case 2 :
+				glTexBindStreamIMG (2, buf_index);
+				// Pass 1 for full screen and 0 for quad mode
+				drawRect2(0);
+				break;
+		case 3 :
+				glTexBindStreamIMG (3, buf_index);
+				// Pass 1 for full screen and 0 for quad mode
+				drawRect3(0);
+				break;
+		default:	
+				printf("Enterer default case %d \n",deviceid); // It should have ner come here
+	}
+	
         setScene();
 	eglSwapBuffers(dpy, surface);
         gettimeofday(&tv, NULL);
@@ -627,13 +714,37 @@ int main(void)
        	static bc_buf_ptr_t buf_pa;
        	int dev_fd;
 	gst_initpacket initparams;
+	deviceid =0; // Ensure its set to dev0 by default
 
        if(need_to_init_egl)
 	{
-		if ((dev_fd = open("/dev/bccat0", O_RDONLY)) == -1) 
+		if ((dev_fd = open("/dev/bccat0", O_RDWR|O_NDELAY)) == -1) 
 		{
-			printf("ERROR: open /dev/bccat0 failed\n"); 	
-			goto exit;
+		        /* Create Named pipe for the ith device node. */ 
+			deviceid++;
+			BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='1';
+			BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='1';
+			BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='1';
+			if ((dev_fd = open("/dev/bccat1", O_RDWR|O_NDELAY)) == -1)
+			{
+				deviceid++;
+				BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='2';
+				BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='2';
+				BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='2';
+				if ((dev_fd = open("/dev/bccat2", O_RDWR|O_NDELAY)) == -1)
+				{
+					deviceid++;
+					BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='3';
+					BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='3';
+					BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='3';
+					if ((dev_fd = open("/dev/bccat3", O_RDWR|O_NDELAY)) == -1)
+					{
+						printf("ERROR: open /dev/bccatX failed\n");
+						deviceid=0;
+						goto exit;
+					}
+				}
+			}
 		}
 
 		printf("Initializing egl..\n\n");
@@ -672,7 +783,7 @@ int main(void)
 	if(n != -1 )
 	{
 	        if (ioctl (dev_fd, BCIOREQ_BUFFERS, &initparams.params) != 0) 
-		{
+		{ 
     			printf("Error: failed to get requested buffers\n");
 			close(fd_bcinit_fifo_rec);
 			goto exit;

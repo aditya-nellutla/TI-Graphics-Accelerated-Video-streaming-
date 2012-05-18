@@ -33,7 +33,7 @@ Note:  	i) Graphics SDK and installation instructions can be obtsined from here 
 
 4) Run autogen.sh from <gst_plugin> dir
 
-5) On sucessful executio of above run -
+5) On sucessful execution of above run -
 	a) "make" followed by "make install".
 
 	The above step installs the following -
@@ -56,10 +56,13 @@ Testing:
 1) On target run the following to test for sucessful installation of plugin -
 	a) gst-inspect bcsink - Displays information about plugin if installed
 
-2) Create the following named pipes in the <TGTFS_PATH>/<INST_DIR> on TARGET from command line
-	a) mkfifo -m 644 gstbcsink_fifo 
-	b) mkfifo -m 644 gstbcinit_fifo
-	c) mkfifo -m 644 gstbcack_fifo
+2) Create the named pipes in the <TGTFS_PATH>/<INST_DIR> on TARGET from command line by executing "<TOP_DIR>/init.sh" script -
+	It creates the following named pipes -
+	a) gstbcsink_fifo`i` 
+	b) gstbcinit_fifo`i`
+	c) gstbcack_fifo`i`
+
+	Note: Where i = 0 to 3.
 
 Sample Pipelines:
 ================
@@ -89,6 +92,21 @@ Launch the following two processes on the target -
          
 	Output: You can observe four videotessrc patterns on the target display in each of the four quads.
 
-Note: To switch from quad mode to full screen, edit <gst_renderer_dir>/gst_renderer.c and call drawRect() with parameter "1" from render function.
-	i.e, drawRect(1)
+4) AVI/MP4/MPEG video decode:
+   -------------------------
+Launch the following two processes on the target -
+	a) gst-launch filesrc location=/sample.avi ! decodebin2 name=dec ! queue ! ffmpegcolorspace !  'video/x-raw-yuv, format=(fourcc)UYVY' ! bcsink
+	b) ./bcRenderer
+         
+	Output: You can observe four videotessrc patterns on the target display in each of the four quads.
 
+Note: To switch from quad mode to full screen, edit <gst_renderer_dir>/gst_renderer.c and call drawRecti() with parameter "1" from render function.
+	ex:- drawRect0(1)
+
+Feature Additions:
+=================
+
+	a) Supports playing multiple videos (upto 4) each launched as a separate instances of bcRenderer & gst-sink as shown above.
+        
+        Note: The performance might vary based on the dimensions of video being decoded.
+        

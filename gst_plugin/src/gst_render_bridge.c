@@ -67,9 +67,9 @@ GST_DEBUG_CATEGORY (bcsink_debug);
 
 #define PROP_DEF_DEVICE             "/dev/bccat0"
 /* FIFO PIPE for communication b/w sink and Texture streaming API */
-#define BCSINK_FIFO_NAME "gstbcsink_fifo"
-#define BCINIT_FIFO_NAME "gstbcinit_fifo"
-#define BCACK_FIFO_NAME "gstbcack_fifo"
+char BCSINK_FIFO_NAME[]= "gstbcsink_fifo0";
+char BCINIT_FIFO_NAME[]= "gstbcinit_fifo0";
+char BCACK_FIFO_NAME[]= "gstbcack_fifo0";
 
 pthread_mutex_t ctrlmutex = PTHREAD_MUTEX_INITIALIZER;
 int fd_bcsink_fifo;
@@ -249,11 +249,45 @@ gst_render_bridge_class_init (GstBufferClassSinkClass * klass)
 static void
 gst_render_bridge_init (GstBufferClassSink * bcsink, GstBufferClassSinkClass * klass)
 {
+  int fd;
   GST_DEBUG_OBJECT (bcsink, "ENTER");
 
   /* default property values: */
   bcsink->num_buffers = PROP_DEF_QUEUE_SIZE;
-  bcsink->videodev = g_strdup (PROP_DEF_DEVICE);
+ // bcsink->videodev = g_strdup (PROP_DEF_DEVICE);
+ 
+  /* Create Named pipe for the ith instance of dev node. */ 
+  if((fd = open("/dev/bccat0", O_RDWR|O_NDELAY)) != -1)
+  {
+          close(fd);
+	  BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='0';
+	  BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='0';
+	  BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='0';
+  }
+  else
+  if((fd = open("/dev/bccat1", O_RDWR|O_NDELAY)) != -1)
+  {
+          close(fd);
+	  BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='1';
+	  BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='1';
+	  BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='1';
+  }
+  else
+  if((fd = open("/dev/bccat2", O_RDWR|O_NDELAY)) != -1)
+  {
+          close(fd);
+	  BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='2';
+	  BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='2';
+	  BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='2';
+  }
+  else
+  if((fd = open("/dev/bccat3", O_RDWR|O_NDELAY)) != -1)
+  {
+          close(fd);
+	  BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='3';
+	  BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='3';
+	  BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='3';
+  }
 
   fd_bcinit_fifo = open( BCINIT_FIFO_NAME, O_WRONLY );
   if(fd_bcinit_fifo < 0)
@@ -306,8 +340,8 @@ gst_render_bridge_set_property (GObject * object,
 
   switch (prop_id) {
     case PROP_DEVICE:{
-      g_free (bcsink->videodev);
-      bcsink->videodev = g_value_dup_string (value);
+     // g_free (bcsink->videodev);
+     // bcsink->videodev = g_value_dup_string (value);
       break;
     }
     case PROP_QUEUE_SIZE:{
@@ -329,7 +363,7 @@ gst_render_bridge_get_property (GObject * object,
   GstBufferClassSink *bcsink = GST_BCSINK (object);
   switch (prop_id) {
     case PROP_DEVICE:{
-      g_value_set_string (value, bcsink->videodev);
+      //g_value_set_string (value, bcsink->videodev);
       break;
     }
     case PROP_QUEUE_SIZE:{
@@ -509,7 +543,7 @@ gst_render_bridge_show_frame (GstBaseSink * bsink, GstBuffer * buf)
 /*****************************************************************
 ******************************************************************/
 
-/* Populate the packet data to be communicated accress pipes */	
+/* Populate the packet data to be communicated accross pipes */	
   datapacket.buf = bcbuf;
   datapacket.index = bcbuf->index;
   
