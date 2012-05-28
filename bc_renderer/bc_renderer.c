@@ -78,17 +78,24 @@ static int setScene();
 // Index to bind the attributes to vertex shaders
 #define VERTEX_ARRAY	2
 #define TEXCOORD_ARRAY	3
+#define MAX_STREAMS 4
 
 // Size of the texture we create
 char BCSINK_FIFO_NAME[]="gstbcsink_fifo0";
 char BCINIT_FIFO_NAME[]="gstbcinit_fifo0";
 char BCACK_FIFO_NAME[]="gstbcack_fifo0";
+char INSTANCEID_FIFO_NAME[]="gstinstanceid_fifo";
 
-static int need_to_init_egl = 1;
-int fd_bcsink_fifo_rec;
-int fd_bcinit_fifo_rec;
-int fd_bcack_fifo_rec;
-int deviceid = 0; // default device
+int fd_bcsink_fifo_rec[MAX_STREAMS];
+int fd_bcinit_fifo_rec[MAX_STREAMS];
+int fd_bcack_fifo_rec[MAX_STREAMS];
+
+int dev_fd0 = -1;
+int dev_fd1 = -1;
+int dev_fd2 = -1;
+int dev_fd3 = -1;
+/* Global device id */
+int id = -1;
 
 PFNGLTEXBINDSTREAMIMGPROC glTexBindStreamIMG = NULL;
 
@@ -654,13 +661,17 @@ void drawRect3(int isfullscreen)
 
 }
 
-void render(int buf_index)
+void render(int deviceid, int buf_index)
 {
     GLuint tex_obj;
-    static  struct timeval tvp, tv;
-    unsigned long tdiff = 0;
-    static int fcount = 0;
+  //  static  struct timeval tvp, tv;
+  //  unsigned long tdiff = 0;
+   // static int fcount = 0;
 
+    /* Return if no data is available */
+    if(buf_index == -1)
+	return;
+	
         glGenTextures(1, &tex_obj);
         glBindTexture(GL_TEXTURE_STREAM_IMG, tex_obj);
         glTexParameterf(GL_TEXTURE_STREAM_IMG, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -669,22 +680,22 @@ void render(int buf_index)
 	switch(deviceid)
 	{
 		case 0 :
-				glTexBindStreamIMG (0, buf_index);
+				glTexBindStreamIMG (deviceid, buf_index);
 				// Pass 1 for full screen and 0 for quad mode
 				drawRect0(0);
 				break;
 		case 1 :
-				glTexBindStreamIMG (1, buf_index);
+				glTexBindStreamIMG (deviceid, buf_index);
 				// Pass 1 for full screen and 0 for quad mode
 				drawRect1(0);
 				break;
 		case 2 :
-				glTexBindStreamIMG (2, buf_index);
+				glTexBindStreamIMG (deviceid, buf_index);
 				// Pass 1 for full screen and 0 for quad mode
 				drawRect2(0);
 				break;
 		case 3 :
-				glTexBindStreamIMG (3, buf_index);
+				glTexBindStreamIMG (deviceid, buf_index);
 				// Pass 1 for full screen and 0 for quad mode
 				drawRect3(0);
 				break;
@@ -693,93 +704,93 @@ void render(int buf_index)
 	}
 	
         setScene();
-	eglSwapBuffers(dpy, surface);
-        gettimeofday(&tv, NULL);
-        fcount++;
-        if (fcount == 1000) {
-            tdiff = (unsigned long)(tv.tv_sec*1000 + tv.tv_usec/1000 -
-                                tvp.tv_sec*1000 - tvp.tv_usec/1000);
-            printf("Frame Rate: %ld \n", (1000*1000)/tdiff);
-            gettimeofday(&tvp, NULL);
-            fcount = 0;
-        }
-    
 }
 
-bc_gstpacket bcbuf_receive, bcbuf;
-int main(void)
+
+void  render_thread(int fd, int devid)
 {
-       	int n=-1;
-	static int  count=0;
-       	static bc_buf_ptr_t buf_pa;
-       	int dev_fd;
-	gst_initpacket initparams;
-	deviceid =0; // Ensure its set to dev0 by default
+	int n;
+	bc_gstpacket bcbuf;
 
-       if(need_to_init_egl)
+	/* return if the device is not yet active */
+	if(fd == -1)
+	{	
+		return;
+	}
+	n = read(fd_bcsink_fifo_rec[devid], &bcbuf, sizeof(bc_gstpacket));
+	if(n > 0)
 	{
-		if ((dev_fd = open("/dev/bccat0", O_RDWR|O_NDELAY)) == -1) 
+		render(devid, bcbuf.index);
+		n = write(fd_bcack_fifo_rec[devid], &bcbuf.buf, sizeof(GstBufferClassBuffer*));
+	}
+	else
+	{
+		/* Close the device to be used by other process */
+		close(fd);
+		/* Set id to -1 to prevent device to be opened again */
+		id = -1;
+		FILE *fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
+		fprintf(fd_instance,"%d",id);
+		fclose(fd_instance);
+		
+		switch(devid)
 		{
-		        /* Create Named pipe for the ith device node. */ 
-			deviceid++;
-			BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='1';
-			BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='1';
-			BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='1';
-			if ((dev_fd = open("/dev/bccat1", O_RDWR|O_NDELAY)) == -1)
-			{
-				deviceid++;
-				BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='2';
-				BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='2';
-				BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='2';
-				if ((dev_fd = open("/dev/bccat2", O_RDWR|O_NDELAY)) == -1)
-				{
-					deviceid++;
-					BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='3';
-					BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='3';
-					BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='3';
-					if ((dev_fd = open("/dev/bccat3", O_RDWR|O_NDELAY)) == -1)
-					{
-						printf("ERROR: open /dev/bccatX failed\n");
-						deviceid=0;
-						goto exit;
-					}
-				}
-			}
-		}
+			case 0: 
+				dev_fd0 = -1;
+				break;
 
-		printf("Initializing egl..\n\n");
-		if( 0 == initApplication())
-		{	
-			printf("EGL init failed");
+			case 1: 
+				dev_fd1 = -1;
+				break;
+
+			case 2: 
+				dev_fd2 = -1;
+				break;
+
+			case 3: 
+				dev_fd3 = -1;
+				break;
+
+		}
+	}
+}
+
+int init(int dev_fd, int devid)
+{
+	int n = -1, count;
+	gst_initpacket initparams;
+       	static bc_buf_ptr_t buf_pa;
+
+	/*************************************************************************************
+	* Open Named pipes for communication with the gst-bcsink plugin
+	**************************************************************************************/
+		BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1] = devid + '0';
+		BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1] = devid + '0';
+		BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]   = devid + '0';
+
+		fd_bcinit_fifo_rec[devid] = open( BCINIT_FIFO_NAME, O_RDONLY);
+		if(fd_bcinit_fifo_rec[devid] < 0)
+		{
+			printf (" Failed to open bcinit_fifo FIFO - fd: %d\n", fd_bcinit_fifo_rec[devid]);
 			goto exit;
 		}
-/*************************************************************************************
-* Open Named pipes for communication with the gst-bcsink plugin
-**************************************************************************************/
-
-		fd_bcinit_fifo_rec = open( BCINIT_FIFO_NAME, O_RDONLY);
-		if(fd_bcinit_fifo_rec < 0)
+		
+		fd_bcsink_fifo_rec[devid] = open( BCSINK_FIFO_NAME, O_RDONLY);
+		if(fd_bcsink_fifo_rec[devid] < 0)
 		{
-			printf (" Failed to open bcinit_fifo FIFO - fd: %d\n", fd_bcinit_fifo_rec);
+			printf (" Failed to open bcsink_fifo FIFO - fd: %d\n", fd_bcsink_fifo_rec[devid]);
+			goto exit;
+		}
+	
+		/* Make read non-blocking */	
+		fd_bcack_fifo_rec[devid] = open( BCACK_FIFO_NAME, O_RDWR | O_NONBLOCK);
+		if(fd_bcack_fifo_rec[devid] < 0)
+		{
+			printf (" Failed to open bcack_fifo FIFO - fd: %d\n", fd_bcack_fifo_rec[devid]);
 			goto exit;
 		}
 
-		fd_bcsink_fifo_rec = open( BCSINK_FIFO_NAME, O_RDONLY );
-		if(fd_bcsink_fifo_rec < 0)
-		{
-			printf (" Failed to open bcsink_fifo FIFO - fd: %d\n", fd_bcsink_fifo_rec);
-			goto exit;
-		}
-
-		fd_bcack_fifo_rec = open( BCACK_FIFO_NAME, O_WRONLY);
-		if(fd_bcack_fifo_rec < 0)
-		{
-			printf (" Failed to open bcack_fifo FIFO - fd: %d\n", fd_bcack_fifo_rec);
-			goto exit;
-		}
-
-
-        n = read(fd_bcinit_fifo_rec, &initparams, sizeof(gst_initpacket));
+        n = read(fd_bcinit_fifo_rec[devid], &initparams, sizeof(gst_initpacket));
 	if(n != -1 )
 	{
 	        if (ioctl (dev_fd, BCIOREQ_BUFFERS, &initparams.params) != 0) 
@@ -791,11 +802,12 @@ int main(void)
 		printf("BCIOREQ_BUFFERS successful \n");
 	}
 
-	close(fd_bcinit_fifo_rec);
-/*************************************************************************************
-**************************************************************************************/
-		glTexBindStreamIMG =
-			(PFNGLTEXBINDSTREAMIMGPROC)eglGetProcAddress("glTexBindStreamIMG");
+	close(fd_bcinit_fifo_rec[devid]);
+	
+	/*************************************************************************************
+	**************************************************************************************/
+
+	glTexBindStreamIMG = (PFNGLTEXBINDSTREAMIMGPROC)eglGetProcAddress("glTexBindStreamIMG");
 
 	for(count =0; count < PROP_DEF_QUEUE_SIZE; count++)
 	{
@@ -808,28 +820,118 @@ int main(void)
 			 printf("ERROR: BCIOSET_BUFFERADDR[%d]: failed (0x%lx)\n",buf_pa.index, buf_pa.pa);
 		}
 	}
+	return 0;
+exit:
+	close(fd_bcsink_fifo_rec[devid]);
+	close(fd_bcack_fifo_rec[devid]);
+	close(dev_fd);
+	releaseView();
+	return 0;
+}
 
-		initView();
-		need_to_init_egl=0;
+
+void * ctrl_thread()
+{
+ 	FILE  *fd_instance; 
+	while(1)
+	{
+
+		fd_instance = fopen( INSTANCEID_FIFO_NAME, "r");
+		fscanf(fd_instance,"%d", &id);
+		fclose(fd_instance);
+		sleep(2);
 	}
 	
+}
 
-	while((read(fd_bcsink_fifo_rec, &bcbuf, sizeof(bc_gstpacket))) != -1)
-	{
-		render(bcbuf.index);
-		
-		n = write(fd_bcack_fifo_rec, &bcbuf.buf, sizeof(GstBufferClassBuffer*));
-		if( n != sizeof(GstBufferClassBuffer *))
-		{	
-			printf("Error Writing into Init Queue\n");
-			goto exit;
-		}
+int main(void)
+{
+       	int n=-1;
+       	int deviceid = -1 ; // Ensure its set to dev0 by default
+	pthread_t thread1;	
+
+	/* Ensure the contents are erased and file is created if doesn't exist*/
+	FILE *fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
+	fprintf(fd_instance,"%d",-1);
+	fclose(fd_instance);
+
+	printf("Initializing egl..\n\n");
+	if( 0 == initApplication())
+	{	
+		printf("EGL init failed");
+		return 0;
 	}
+	initView();
+	
+	n = pthread_create(&thread1, NULL, ctrl_thread, NULL);		
 
-exit:
-	close(fd_bcsink_fifo_rec);
-	close(fd_bcack_fifo_rec);
-	releaseView();
+	while(1)
+	{
+		switch(id)
+		{
+			case 0:
+				if ((dev_fd0 = open("/dev/bccat0", O_RDWR|O_NDELAY)) != -1) 
+				{
+					/* Reset id to disallow switch cases */
+					id = -1;
+					fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
+					fprintf(fd_instance,"%d",id);
+					fclose(fd_instance);
+		
+					deviceid = 0;
+					init(dev_fd0, deviceid);
+				}
+				break;
+
+			case 1:
+				if ((dev_fd1 = open("/dev/bccat1", O_RDWR|O_NDELAY)) != -1)
+				{
+					/* Reset id to disallow switch cases */
+					id = -1;
+					fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
+					fprintf(fd_instance,"%d",id);
+					fclose(fd_instance);
+		
+					deviceid = 1;
+					init(dev_fd1, deviceid);
+				}
+				break;
+
+			case 2:
+				if ((dev_fd2 = open("/dev/bccat2", O_RDWR|O_NDELAY)) != -1) 
+				{
+					/* Reset id to disallow switch cases */
+					id = -1;
+					fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
+					fprintf(fd_instance,"%d",id);
+					fclose(fd_instance);
+		
+					deviceid = 2;
+					init(dev_fd2, deviceid);
+				}
+				break;
+
+			case 3:
+				if ((dev_fd3 = open("/dev/bccat3", O_RDWR|O_NDELAY)) != -1)
+				{
+					/* Reset id to disallow switch cases */
+					id = -1;
+					fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
+					fprintf(fd_instance,"%d",id);
+					fclose(fd_instance);
+		
+					deviceid = 3;
+					init(dev_fd3, deviceid);
+				}
+				break;
+		}
+		
+		render_thread(dev_fd0,0);
+		render_thread(dev_fd1,1);
+		render_thread(dev_fd2,2);
+		render_thread(dev_fd3,3);
+		eglSwapBuffers(dpy, surface);
+	}
 	return 0;
 }
 

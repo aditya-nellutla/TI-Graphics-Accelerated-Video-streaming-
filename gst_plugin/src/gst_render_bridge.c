@@ -70,6 +70,7 @@ GST_DEBUG_CATEGORY (bcsink_debug);
 char BCSINK_FIFO_NAME[]= "gstbcsink_fifo0";
 char BCINIT_FIFO_NAME[]= "gstbcinit_fifo0";
 char BCACK_FIFO_NAME[]= "gstbcack_fifo0";
+char INSTANCEID_FIFO_NAME[]="gstinstanceid_fifo";
 
 pthread_mutex_t ctrlmutex = PTHREAD_MUTEX_INITIALIZER;
 int fd_bcsink_fifo;
@@ -249,46 +250,67 @@ gst_render_bridge_class_init (GstBufferClassSinkClass * klass)
 static void
 gst_render_bridge_init (GstBufferClassSink * bcsink, GstBufferClassSinkClass * klass)
 {
-  int fd;
+  int fd = -1, n;
+  int deviceid = -1;
+  FILE *fd_instance;
   GST_DEBUG_OBJECT (bcsink, "ENTER");
 
   /* default property values: */
   bcsink->num_buffers = PROP_DEF_QUEUE_SIZE;
- // bcsink->videodev = g_strdup (PROP_DEF_DEVICE);
- 
-  /* Create Named pipe for the ith instance of dev node. */ 
+  // bcsink->videodev = g_strdup (PROP_DEF_DEVICE);
+  
+  fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
+  
+  /* Create Named pipe for the ith instance of dev node. */
   if((fd = open("/dev/bccat0", O_RDWR|O_NDELAY)) != -1)
   {
-          close(fd);
-	  BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='0';
-	  BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='0';
-	  BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='0';
+        close(fd);
+	deviceid = 0;
+	BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='0';
+	BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='0';
+	BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='0';
+	fprintf(fd_instance,"%d", deviceid); 
   }
   else
   if((fd = open("/dev/bccat1", O_RDWR|O_NDELAY)) != -1)
   {
-          close(fd);
-	  BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='1';
-	  BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='1';
-	  BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='1';
+        close(fd);
+	deviceid = 1;
+	BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='1';
+	BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='1';
+	BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='1';
+	fprintf(fd_instance,"%d", deviceid); 
   }
   else
   if((fd = open("/dev/bccat2", O_RDWR|O_NDELAY)) != -1)
   {
-          close(fd);
-	  BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='2';
-	  BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='2';
-	  BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='2';
+        close(fd);
+	deviceid = 2;
+	BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='2';
+	BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='2';
+	BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='2';
+	fprintf(fd_instance,"%d", deviceid); 
   }
   else
   if((fd = open("/dev/bccat3", O_RDWR|O_NDELAY)) != -1)
   {
-          close(fd);
-	  BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='3';
-	  BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='3';
-	  BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='3';
+        close(fd);
+	deviceid = 3;
+	BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1]='3';
+	BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1]='3';
+	BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]='3';
+	fprintf(fd_instance,"%d", deviceid); 
   }
+  
+  fclose(fd_instance);
 
+  /* All devices are busy - quit */
+  if(deviceid == -1)
+  {
+	printf("All devices are busy, can't process the request ...\n");
+	exit(0);	
+  }
+  
   fd_bcinit_fifo = open( BCINIT_FIFO_NAME, O_WRONLY );
   if(fd_bcinit_fifo < 0)
   {
@@ -309,6 +331,7 @@ gst_render_bridge_init (GstBufferClassSink * bcsink, GstBufferClassSinkClass * k
 	printf (" Failed to open bciack_fifo FIFO - fd: %d\n", fd_bcack_fifo);
 	exit(0);
   }
+
 }
 
 
