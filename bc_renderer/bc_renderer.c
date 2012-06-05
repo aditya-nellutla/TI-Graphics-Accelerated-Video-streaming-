@@ -85,10 +85,12 @@ char BCSINK_FIFO_NAME[]="gstbcsink_fifo0";
 char BCINIT_FIFO_NAME[]="gstbcinit_fifo0";
 char BCACK_FIFO_NAME[]="gstbcack_fifo0";
 char INSTANCEID_FIFO_NAME[]="gstinstanceid_fifo";
+char CTRL_FIFO_NAME[]="gstcrtl_fifo";
 
 int fd_bcsink_fifo_rec[MAX_STREAMS];
 int fd_bcinit_fifo_rec[MAX_STREAMS];
 int fd_bcack_fifo_rec[MAX_STREAMS];
+int fd_ctrl_fifo;
 
 int dev_fd0 = -1;
 int dev_fd1 = -1;
@@ -96,6 +98,7 @@ int dev_fd2 = -1;
 int dev_fd3 = -1;
 /* Global device id */
 int id = -1;
+int full_screen = -1;
 
 PFNGLTEXBINDSTREAMIMGPROC glTexBindStreamIMG = NULL;
 
@@ -664,10 +667,8 @@ void drawRect3(int isfullscreen)
 void render(int deviceid, int buf_index)
 {
     GLuint tex_obj;
-  //  static  struct timeval tvp, tv;
-  //  unsigned long tdiff = 0;
-   // static int fcount = 0;
-
+    static int count=0;
+    static int fscr = 0;
     /* Return if no data is available */
     if(buf_index == -1)
 	return;
@@ -677,30 +678,47 @@ void render(int deviceid, int buf_index)
         glTexParameterf(GL_TEXTURE_STREAM_IMG, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameterf(GL_TEXTURE_STREAM_IMG, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
+	if(full_screen != -1)
+	{
+		fscr = 1;
+		/* Full screen mode is active, only active device needs to render */
+		if(deviceid != full_screen)
+		{
+			return;
+		}
+	}
+	else
+	{
+		/* This means we toggled from full screen to quad mode,clear the buffer */
+		if(fscr == 1)
+		{
+			glClearColor(1.0, 1.0, 1.0, 1.0);
+			glClear(GL_COLOR_BUFFER_BIT);
+		}
+
+		fscr = 0;
+	}
 	switch(deviceid)
 	{
 		case 0 :
 				glTexBindStreamIMG (deviceid, buf_index);
-				// Pass 1 for full screen and 0 for quad mode
-				drawRect0(0);
+				drawRect0(fscr);
 				break;
 		case 1 :
 				glTexBindStreamIMG (deviceid, buf_index);
-				// Pass 1 for full screen and 0 for quad mode
-				drawRect1(0);
+				drawRect1(fscr);
 				break;
 		case 2 :
 				glTexBindStreamIMG (deviceid, buf_index);
-				// Pass 1 for full screen and 0 for quad mode
-				drawRect2(0);
+				drawRect2(fscr);
 				break;
 		case 3 :
 				glTexBindStreamIMG (deviceid, buf_index);
-				// Pass 1 for full screen and 0 for quad mode
-				drawRect3(0);
+				drawRect3(fscr);
 				break;
 		default:	
 				printf("Enterer default case %d \n",deviceid); // It should have ner come here
+				break;
 	}
 	
         setScene();
@@ -725,6 +743,7 @@ void  render_thread(int fd, int devid)
 	}
 	else
 	{
+		glClear(GL_COLOR_BUFFER_BIT);
 		/* Close the device to be used by other process */
 		close(fd);
 		/* Set id to -1 to prevent device to be opened again */
@@ -829,8 +848,47 @@ exit:
 	return 0;
 }
 
+void * user_ctrl_thread()
+{
+	int n, res=-1;
+	fd_ctrl_fifo =	open(CTRL_FIFO_NAME, O_RDONLY);
+	while(1)
+	{
+		n = read(fd_ctrl_fifo, &res, sizeof(int));
+		printf("received val is %d\n", res);
+		if(full_screen != -1)
+		{
+			printf("setting full_screen to -1\n");
+			full_screen = -1;
+		}
+		else
+		{
+			printf("setting full_screen to %d\n", res);
+			switch(res)
+			{
+				case 0:
+					if(dev_fd0 != -1)
+						full_screen = res;
+					break;
+				case 1:
+					if(dev_fd1 != -1)
+						full_screen = res;
+					break;
+				case 2:
+					if(dev_fd2 != -1)
+						full_screen = res;
+					break;
+				case 3:
+					if(dev_fd3 != -1)
+						full_screen = res;
+					break;
+			}
+		}
+	}
+}
 
-void * ctrl_thread()
+
+void * pipe_ctrl_thread()
 {
  	FILE  *fd_instance; 
 	while(1)
@@ -841,15 +899,15 @@ void * ctrl_thread()
 		fclose(fd_instance);
 		sleep(2);
 	}
-	
 }
 
 int main(void)
 {
        	int n=-1;
        	int deviceid = -1 ; // Ensure its set to dev0 by default
-	pthread_t thread1;	
-
+	pthread_t thread1;
+	pthread_t thread2;
+	static int pause =0;
 	/* Ensure the contents are erased and file is created if doesn't exist*/
 	FILE *fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
 	fprintf(fd_instance,"%d",-1);
@@ -857,13 +915,14 @@ int main(void)
 
 	printf("Initializing egl..\n\n");
 	if( 0 == initApplication())
-	{	
+	{
 		printf("EGL init failed");
 		return 0;
 	}
 	initView();
 	
-	n = pthread_create(&thread1, NULL, ctrl_thread, NULL);		
+	n = pthread_create(&thread1, NULL, pipe_ctrl_thread, NULL);
+	n = pthread_create(&thread2, NULL, user_ctrl_thread, NULL);
 
 	while(1)
 	{
@@ -877,7 +936,7 @@ int main(void)
 					fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
 					fprintf(fd_instance,"%d",id);
 					fclose(fd_instance);
-		
+
 					deviceid = 0;
 					init(dev_fd0, deviceid);
 				}
@@ -891,7 +950,7 @@ int main(void)
 					fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
 					fprintf(fd_instance,"%d",id);
 					fclose(fd_instance);
-		
+
 					deviceid = 1;
 					init(dev_fd1, deviceid);
 				}
@@ -905,7 +964,7 @@ int main(void)
 					fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
 					fprintf(fd_instance,"%d",id);
 					fclose(fd_instance);
-		
+
 					deviceid = 2;
 					init(dev_fd2, deviceid);
 				}
@@ -924,13 +983,27 @@ int main(void)
 					init(dev_fd3, deviceid);
 				}
 				break;
+
+			default:
+				/* Do nothing break */
+				break;
+		}
+
+		if( (dev_fd0 != -1) || (dev_fd1 != -1) || (dev_fd2 != -1)  || (dev_fd3 != -1) )
+		{
+			render_thread(dev_fd0,0);
+			render_thread(dev_fd1,1);
+			render_thread(dev_fd2,2);
+			render_thread(dev_fd3,3);
+
+			eglSwapBuffers(dpy, surface);
+		}
+		else
+		{
+			printf("No device is active sleeping...\n");
+			sleep(2);
 		}
 		
-		render_thread(dev_fd0,0);
-		render_thread(dev_fd1,1);
-		render_thread(dev_fd2,2);
-		render_thread(dev_fd3,3);
-		eglSwapBuffers(dpy, surface);
 	}
 	return 0;
 }

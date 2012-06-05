@@ -8,7 +8,7 @@ autoreconf --verbose --force --install --make || {
  exit 1;
 }
 
-./configure --build=i686-linux --host=arm-arago-linux-gnueabi --prefix=/home1/aditya/linux/arago/nfs_arago_nov7/usr/  || {
+./configure --build=i686-linux --host=arm-arago-linux-gnueabi --prefix=/home1/aditya/temp/amsdk/filesystem/amsdk_fs/usr/  || {
  echo 'configure failed';
  exit 1;
 }

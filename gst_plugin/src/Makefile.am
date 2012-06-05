@@ -36,7 +36,7 @@ libgstbc_la_CFLAGS = $(GST_CFLAGS) $(GST_BASE_CFLAGS) \
 libgstbc_la_LIBADD = \
 	$(GST_BASE_LIBS) \
 	$(GST_PLUGINS_BASE_LIBS) \
-        -L$(TGTFS_PATH)/opt/gstreamer/lib  -lgstvideo-0.10 \
+        -L$(TGTFS_PATH)/lib  -lgstvideo-0.10 \
         -L$(GSDK_ROOT)/gfx_rel_es5.x  -lGLESv2 -lEGL	
 
 AM_CXXFLAGS = $(GST_PLUGINS_BASE_CFLAGS) $(GST_BASE_CFLAGS) $(GST_CFLAGS) $(libgstbc_la_CFLAGS) $(libgstbc_la_LIBADD)

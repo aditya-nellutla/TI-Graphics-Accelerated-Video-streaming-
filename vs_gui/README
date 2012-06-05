@@ -1,0 +1,2 @@
+source <amsdk>linux-devtools/environmentsetup
+genegrate Makefile - see Makefile header.

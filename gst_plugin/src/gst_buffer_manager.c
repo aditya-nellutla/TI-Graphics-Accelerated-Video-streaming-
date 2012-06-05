@@ -65,7 +65,7 @@
 GST_DEBUG_CATEGORY_EXTERN (bcsink_debug);
 #define GST_CAT_DEFAULT bcsink_debug
 
-static CMEM_AllocParams cmem_params = { CMEM_POOL, CMEM_NONCACHED, 4096 };
+static CMEM_AllocParams cmem_params = { CMEM_POOL, CMEM_CACHED, 4096 };
 
 /* round X up to a multiple of Y:
  */

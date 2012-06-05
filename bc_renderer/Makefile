@@ -16,7 +16,7 @@ INCS     ?= -I../gst_plugin/src \
 LIB_PATH ?= -L$(GSDK_ROOT)/gfx_rel_es8.x \
             -Wl,--rpath=$(GSDK_ROOT)/gfx_rel_es8.x \
 
-INST_DEST    ?= $(TGTFS_PATH)/opt/usbVidStream
+INST_DEST    ?= $(TGTFS_PATH)/opt/gstbc
 
 CFLAGS   := -W -Wall -O2 -DLINUX $(INCS)
 LIBS     := -lEGL
