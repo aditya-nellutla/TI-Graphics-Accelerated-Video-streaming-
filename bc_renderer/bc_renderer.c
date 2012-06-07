@@ -96,6 +96,9 @@ int dev_fd0 = -1;
 int dev_fd1 = -1;
 int dev_fd2 = -1;
 int dev_fd3 = -1;
+
+int tex_obj[4] = {-1, -1, -1, -1};;
+
 /* Global device id */
 int id = -1;
 int full_screen = -1;
@@ -666,17 +669,13 @@ void drawRect3(int isfullscreen)
 
 void render(int deviceid, int buf_index)
 {
-    GLuint tex_obj;
-    static int count=0;
     static int fscr = 0;
+
     /* Return if no data is available */
     if(buf_index == -1)
 	return;
-	
-        glGenTextures(1, &tex_obj);
-        glBindTexture(GL_TEXTURE_STREAM_IMG, tex_obj);
-        glTexParameterf(GL_TEXTURE_STREAM_IMG, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameterf(GL_TEXTURE_STREAM_IMG, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        glBindTexture(GL_TEXTURE_STREAM_IMG, tex_obj[deviceid]);
 
 	if(full_screen != -1)
 	{
@@ -717,11 +716,13 @@ void render(int deviceid, int buf_index)
 				drawRect3(fscr);
 				break;
 		default:	
-				printf("Enterer default case %d \n",deviceid); // It should have ner come here
+				printf("Enterer default case %d \n",deviceid); // It should have never come here
 				break;
 	}
 	
         setScene();
+	/* Unbind the texture */
+        glBindTexture(GL_TEXTURE_STREAM_IMG, 0);
 }
 
 
@@ -732,7 +733,7 @@ void  render_thread(int fd, int devid)
 
 	/* return if the device is not yet active */
 	if(fd == -1)
-	{	
+	{
 		return;
 	}
 	n = read(fd_bcsink_fifo_rec[devid], &bcbuf, sizeof(bc_gstpacket));
@@ -744,6 +745,10 @@ void  render_thread(int fd, int devid)
 	else
 	{
 		glClear(GL_COLOR_BUFFER_BIT);
+		/* close the named pipes which are not in use*/
+		close(fd_bcsink_fifo_rec[devid]);
+		close(fd_bcack_fifo_rec[devid]);
+
 		/* Close the device to be used by other process */
 		close(fd);
 		/* Set id to -1 to prevent device to be opened again */
@@ -751,7 +756,9 @@ void  render_thread(int fd, int devid)
 		FILE *fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
 		fprintf(fd_instance,"%d",id);
 		fclose(fd_instance);
-		
+
+		/* Reset texture object */
+		tex_obj[devid] = -1;
 		switch(devid)
 		{
 			case 0: 
@@ -778,7 +785,7 @@ int init(int dev_fd, int devid)
 {
 	int n = -1, count;
 	gst_initpacket initparams;
-       	static bc_buf_ptr_t buf_pa;
+	bc_buf_ptr_t buf_pa;
 
 	/*************************************************************************************
 	* Open Named pipes for communication with the gst-bcsink plugin
@@ -818,27 +825,30 @@ int init(int dev_fd, int devid)
 			close(fd_bcinit_fifo_rec);
 			goto exit;
 		}
-		printf("BCIOREQ_BUFFERS successful \n");
 	}
 
 	close(fd_bcinit_fifo_rec[devid]);
-	
+
 	/*************************************************************************************
 	**************************************************************************************/
 
-	glTexBindStreamIMG = (PFNGLTEXBINDSTREAMIMGPROC)eglGetProcAddress("glTexBindStreamIMG");
-
 	for(count =0; count < PROP_DEF_QUEUE_SIZE; count++)
 	{
-
 		buf_pa.pa    = initparams.phyaddr + initparams.params.width*initparams.params.height*2*count;
 		buf_pa.index =  count;
 
-		if (ioctl(dev_fd, BCIOSET_BUFFERPHYADDR, &buf_pa) != 0) 
-		{ 
+		if (ioctl(dev_fd, BCIOSET_BUFFERPHYADDR, &buf_pa) != 0)
+		{
 			 printf("ERROR: BCIOSET_BUFFERADDR[%d]: failed (0x%lx)\n",buf_pa.index, buf_pa.pa);
 		}
 	}
+
+	glTexBindStreamIMG = (PFNGLTEXBINDSTREAMIMGPROC)eglGetProcAddress("glTexBindStreamIMG");
+        glGenTextures(1, &tex_obj[devid]);
+        glBindTexture(GL_TEXTURE_STREAM_IMG, tex_obj[devid]);
+        glTexParameterf(GL_TEXTURE_STREAM_IMG, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameterf(GL_TEXTURE_STREAM_IMG, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
 	return 0;
 exit:
 	close(fd_bcsink_fifo_rec[devid]);
@@ -848,6 +858,7 @@ exit:
 	return 0;
 }
 
+/* Reads the status to toggle between fullscreen/quad modes */
 void * user_ctrl_thread()
 {
 	int n, res=-1;
@@ -855,15 +866,12 @@ void * user_ctrl_thread()
 	while(1)
 	{
 		n = read(fd_ctrl_fifo, &res, sizeof(int));
-		printf("received val is %d\n", res);
 		if(full_screen != -1)
 		{
-			printf("setting full_screen to -1\n");
 			full_screen = -1;
 		}
 		else
 		{
-			printf("setting full_screen to %d\n", res);
 			switch(res)
 			{
 				case 0:
@@ -907,7 +915,6 @@ int main(void)
        	int deviceid = -1 ; // Ensure its set to dev0 by default
 	pthread_t thread1;
 	pthread_t thread2;
-	static int pause =0;
 	/* Ensure the contents are erased and file is created if doesn't exist*/
 	FILE *fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
 	fprintf(fd_instance,"%d",-1);
@@ -1000,7 +1007,6 @@ int main(void)
 		}
 		else
 		{
-			printf("No device is active sleeping...\n");
 			sleep(2);
 		}
 		

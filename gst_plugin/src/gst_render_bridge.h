@@ -65,7 +65,7 @@ typedef struct _GstBufferClassSink GstBufferClassSink;
 typedef struct _GstBufferClassSinkClass GstBufferClassSinkClass;
 
 
-#define PROP_DEF_QUEUE_SIZE 2
+#define PROP_DEF_QUEUE_SIZE 6
 #define GST_BC_MIN_BUFFERS  2
 #define GST_BC_MAX_BUFFERS 12
 

@@ -61,7 +61,7 @@
 #include <cmem.h>
 
 #define BCIO_FLUSH                BC_IOWR(5)
-#define MAX_FCOUNT 20
+#define MAX_FCOUNT 8
 GST_DEBUG_CATEGORY_EXTERN (bcsink_debug);
 #define GST_CAT_DEFAULT bcsink_debug
 
@@ -429,3 +429,21 @@ gst_buffer_manager_get (GstBufferClassBufferPool * pool)
 
   return buf;
 }
+
+/**
+ * cause buffer to be flushed before rendering
+ */
+void
+gst_bcbuffer_flush (GstBufferClassBuffer * buffer)
+{
+  GstBufferClassBufferPool *pool = buffer->pool;
+  BCIO_package param;
+
+  param.input = buffer->index;
+
+  if (ioctl (pool->fd, BCIO_FLUSH, &param) < 0) {
+    GST_WARNING_OBJECT (pool->elem, "Failed BCIO_FLUSH: %s",
+        g_strerror (errno));
+  }
+}
+

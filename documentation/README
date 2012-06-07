@@ -8,7 +8,7 @@ Requirements:
 
 Build and Install:
 ================= 
-1) Set the following Variables in <gst-plugin_dir>/src/rules.make
+1) Set the following Variables in <ROOT_DIR>/<gst-plugin_dir>/src/rules.make
 	a) GSDK_ROOT = /path/to/graphics SDK root
         b) TGTFS_PATH = /path/to/NFS/Flesystem
         c) CMEM_DIR = /path/to/cmem/sources
@@ -18,11 +18,15 @@ Build and Install:
 Note:  	i) Graphics SDK and installation instructions can be obtsined from here -
 	http://processors.wiki.ti.com/index.php/Graphics_SDK_Quick_installation_and_user_guide
 
-	ii) Platform requires bufferclass_ti.ko and cmemk.ko modules along with pvrsrv and omaplfb drivers.
+	ii)For supporting multichannel video streaming rebuild and install Graphics SDK by modifying the following -
+		+	"#define SYS_DEVICE_COUNT 10" 
+			in <GSDK_ROOT>/GFX_Linux_KM/services4/system/ti335x/sysinfo.h
+
+	iii) Platform requires bufferclass_ti.ko and cmemk.ko modules along with pvrsrv and omaplfb drivers.
 		a) User needs to separately build cmemk module and insmod with appropriate arguments.
-		b) Other modules mentioned above will be buuilt as a part of Graphics SDK.
-	
-	iii)User should separately build/install open source gstreamer (ARM only) to the TARGET FILE SYSTEM
+		b) Other modules mentioned above will be built as a part of Graphics SDK.
+
+	iv)User should separately build/install open source gstreamer (ARM only) to the TARGET FILE SYSTEM
 
 
 2) Edit <gst-plugin_dir>/autogen.sh and add host/prefix values as appropriate
@@ -56,13 +60,15 @@ Testing:
 1) On target run the following to test for sucessful installation of plugin -
 	a) gst-inspect bcsink - Displays information about plugin if installed
 
-2) Create the named pipes in the <TGTFS_PATH>/<INST_DIR> on TARGET from command line by executing "<TOP_DIR>/init.sh" script -
-	It creates the following named pipes -
-	a) gstbcsink_fifo`i` 
-	b) gstbcinit_fifo`i`
-	c) gstbcack_fifo`i`
+2) Copy <ROOT_DIR>/vsgui/v3dfxGUI to <TGTFS_PATH>/<INST_DIR> on TARGET
 
-	Note: Where i = 0 to 3.
+3) Copy <ROOT_DIR>/init.sh to <TGTFS_PATH>/<INST_DIR> on TARGET and set "PATH_TO_CMEM" to location where cmemk.ko is present, edit cmemk parameters as appropriate  -
+	a) cd <TGTFS_PATH>/<INST_DIR>
+	b) execute ./init.sh
+		1) It initializes (cmemk, bufferclass_ti) kernel modules.
+		2) Creates appropriate named pipes.
+		3) Starts Qt GUI for enabling touch events.
+		4) Starts the renderer in backgrounds.
 
 Sample Pipelines:
 ================
@@ -70,43 +76,40 @@ Sample Pipelines:
 1) Default video test:
    ------------------
 Launch the following two processes on the target -
-	a) gst-launch videotestsrc ! 'video/x-raw-yuv, format=(fourcc)UYVY, width=320, height=240, framerate=24/1' ! bcsink 
-	b) ./bcRenderer
+	a) gst-launch videotestsrc ! 'video/x-raw-yuv, format=(fourcc)UYVY, width=320, height=240, framerate=24/1' ! bcsink &
 
-	Output: You can observe videotessrc pattern on the target display in each of the four quads.
+	Output: You can observe videotessrc pattern on the target display in one of the four quads.
 		see <documentation>/Output.jpg
 
 2) USB Camera capture:
    ------------------
 Launch the following two processes on the target -
-	a) gst-launch v4l2src ! 'video/x-raw-yuv, width=320,height=240,framerate=30/1' ! bcsink
-	b) ./bcRenderer
+	a) gst-launch v4l2src ! 'video/x-raw-yuv, width=320,height=240,framerate=24/1' ! bcsink &
 
-	Output: You can observe videotessrc pattern on the target display in each of the four quads.
+	Output: You can observe videotessrc pattern on the target display in one of the four quads.
 
 3) MPEG video decode:
    -----------------
 Launch the following two processes on the target -
-	a) gst-launch filesrc location=/sample.mpg ! mpegdemux ! ffdec_mpegvideo ! ffmpegcolorspace ! 'video/x-raw-yuv, format=(fourcc)UYVY' ! bcsink
-	b) ./bcRenderer
-         
-	Output: You can observe four videotessrc patterns on the target display in each of the four quads.
+	a) gst-launch filesrc location=/sample.mpg ! mpegdemux ! ffdec_mpegvideo ! ffmpegcolorspace ! 'video/x-raw-yuv, format=(fourcc)UYVY' ! bcsink &
+
+	Output: You can observe four videotessrc patterns on the target display in one of the four quads.
 
 4) AVI/MP4/MPEG video decode:
    -------------------------
 Launch the following two processes on the target -
 	a) gst-launch filesrc location=/sample.avi ! decodebin2 name=dec ! queue ! ffmpegcolorspace !  'video/x-raw-yuv, format=(fourcc)UYVY' ! bcsink
-	b) ./bcRenderer
-         
-	Output: You can observe four videotessrc patterns on the target display in each of the four quads.
+ 
+	Output: You can observe four videotessrc patterns on the target display in one of the four quads.
 
-Note: To switch from quad mode to full screen, edit <gst_renderer_dir>/gst_renderer.c and call drawRecti() with parameter "1" from render function.
-	ex:- drawRect0(1)
+Note: To switch from quad mode to full screen, tap/press on the  desired video window and viceversa to return to quad display.
 
 Feature Additions:
 =================
 
-	a) Supports playing multiple videos (upto 4) each launched as a separate instances of bcRenderer & gst-sink as shown above.
-        
+	a) Supports playing multiple videos (upto 4) each launched as a separate instances of  gstreamer as shown above.
+	b) Supports switching between quad mode/ full screen
+ 
         Note: The performance might vary based on the dimensions of video being decoded.
-        
+ 
+Note:  Input video stream dimensions for a given channel must remain same through out.

@@ -55,6 +55,10 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#define MAX_QUEUE 3
+
+/*Used for unreferencing buffers for deferred rendering architecture */
+GstBufferClassBuffer *bcbuf_queue[MAX_QUEUE]= {NULL, NULL, NULL};
 
 static GstStaticPadTemplate sink_template = GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
@@ -76,7 +80,7 @@ pthread_mutex_t ctrlmutex = PTHREAD_MUTEX_INITIALIZER;
 int fd_bcsink_fifo;
 int fd_bcinit_fifo;
 int fd_bcack_fifo;
-#define MAX_FCOUNT 20
+#define MAX_FCOUNT 6
 extern unsigned long TextureBufsPa[MAX_FCOUNT];
 pthread_mutex_t initmutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -257,7 +261,6 @@ gst_render_bridge_init (GstBufferClassSink * bcsink, GstBufferClassSinkClass * k
 
   /* default property values: */
   bcsink->num_buffers = PROP_DEF_QUEUE_SIZE;
-  // bcsink->videodev = g_strdup (PROP_DEF_DEVICE);
   
   fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
   
@@ -530,6 +533,7 @@ gst_render_bridge_show_frame (GstBaseSink * bsink, GstBuffer * buf)
   GstBufferClassBuffer *bcbuf_rec;
   GstBuffer *newbuf = NULL;
   int n;
+  static int queue_counter=0;
 
   GST_DEBUG_OBJECT (bcsink, "render buffer: %p", buf);
 
@@ -558,9 +562,11 @@ gst_render_bridge_show_frame (GstBaseSink * bsink, GstBuffer * buf)
   }
 
   bcbuf = GST_BCBUFFER (buf);
-  //gst_bcbuffer_flush (bcbuf);
 
-  g_signal_emit (bcsink, signals[SIG_RENDER], 0, bcbuf->index);
+  /* cause buffer to be flushed before rendering */
+  gst_bcbuffer_flush (bcbuf);
+
+  //g_signal_emit (bcsink, signals[SIG_RENDER], 0, bcbuf->index);
 
   gst_buffer_ref(bcbuf);
 /*****************************************************************
@@ -582,7 +588,19 @@ gst_render_bridge_show_frame (GstBaseSink * bsink, GstBuffer * buf)
 
 	if(n == sizeof(GstBufferClassBuffer *))
 	{
-		gst_buffer_unref(bcbuf_rec);
+		/* Delay unreferencing the buffers to account for the deferred rendering architecture of SGX*/
+		if( bcbuf_queue[queue_counter]==NULL )
+		{
+			/* Start queing buffers until full */
+			bcbuf_queue[queue_counter] = bcbuf_rec;
+			queue_counter = (queue_counter + 1)%MAX_QUEUE;
+		}
+		else
+		{
+			gst_buffer_unref(bcbuf_queue[queue_counter]);
+			bcbuf_queue[queue_counter] = bcbuf_rec;
+			queue_counter = (queue_counter + 1)%MAX_QUEUE;
+		}
 	}
 
 /*****************************************************************
