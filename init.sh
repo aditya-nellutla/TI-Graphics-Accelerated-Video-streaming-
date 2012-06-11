@@ -21,6 +21,8 @@ mkfifo -m 644 gstbcsink_fifo3
 mkfifo -m 644 gstbcinit_fifo3
 mkfifo -m 644 gstbcack_fifo3
 
+mkfifo -m 644 gstcrtl_fifo
+
 echo "Starting the Qt in background..."
 ./v3dfxGUI -qws &
 
