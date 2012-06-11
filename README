@@ -16,5 +16,10 @@ Contains rendering API which uses IMG Texture streaming extension for video stre
 Basic documentation
 
 
+=== TI_Graphics_SDK ===
+
+Contains TI-Graphics SDK installer supporting I420/YV12 formats with bufferclass driver.
+
+
 -aditya.n@ti.com
 
