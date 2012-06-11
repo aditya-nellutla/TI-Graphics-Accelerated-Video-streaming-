@@ -45,7 +45,7 @@
 #include <GLES2/gl2ext.h>
 #include <bc_cat.h>
 
-typedef void (GL_APIENTRYP PFNGLTEXBINDSTREAMIMGPROC) (GLint device, GLint deviceoffset);
+/*typedef void (GL_APIENTRYP PFNGLTEXBINDSTREAMIMGPROC) (GLint device, GLint deviceoffset);*/
 extern PFNGLTEXBINDSTREAMIMGPROC glTexBindStreamIMG;
 #define GL_TEXTURE_STREAM_IMG  0x8C0D
 

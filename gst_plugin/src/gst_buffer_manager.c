@@ -71,6 +71,7 @@ static CMEM_AllocParams cmem_params = { CMEM_POOL, CMEM_CACHED, 4096 };
  */
 #define CEIL(X,Y)  ((Y) * ( ((X)/(Y)) + (((X)%(Y)==0)?0:1) ))
 
+#define BPP 2
 
 /*
  * GstBufferClassBuffer:
@@ -251,7 +252,6 @@ gst_buffer_manager_get_type (void)
   return _gst_buffer_manager_type;
 }
 
-
 unsigned long TextureBufsPa[MAX_FCOUNT];
 /*
  * Construct new bufferpool and allocate buffers from driver
@@ -267,20 +267,20 @@ gst_buffer_manager_new (GstElement * elem, int fd, int count, GstCaps * caps)
 {
   GstBufferClassBufferPool *pool = NULL;
   GstVideoFormat format;
-  gint width, height ;
+  gint width, height;
   void          *vidStreamBufVa;
   unsigned long vidStreamBufPa;
   int n, i;
   gst_initpacket pack_info;
   if (gst_video_format_parse_caps(caps, &format, &width, &height)) {
     bc_buf_params_t param;
-
+  
 /****************************************************************************/
 /****************************************************************************/
 /****************************************************************************/
     CMEM_init();
 
-    vidStreamBufVa = CMEM_alloc((width*height*2*MAX_FCOUNT), &cmem_params);
+    vidStreamBufVa = CMEM_alloc((width*height*BPP*MAX_FCOUNT), &cmem_params);
     if (!vidStreamBufVa)
     {
         printf ("CMEM_alloc for Video Stream buffer returned NULL \n");
@@ -290,30 +290,17 @@ gst_buffer_manager_new (GstElement * elem, int fd, int count, GstCaps * caps)
     vidStreamBufPa = CMEM_getPhys(vidStreamBufVa);
     for (i = 0; i < count; i++)
     {
-        TextureBufsPa[i] = vidStreamBufPa + (width*height*2*i);
+        TextureBufsPa[i] = vidStreamBufPa + (width*height*BPP*i);
     }
 /****************************************************************************/
 /****************************************************************************/
 /****************************************************************************/
+
     param.count = count;
-    param.width = width;     /* width should be multiple of 32 */
+    param.width = width;
     param.height = height;
-    
-    switch(format)
-    {
-        case 3 :   param.fourcc = BC_PIX_FMT_YUYV;
-                   break;
+    param.fourcc = gst_video_format_to_fourcc (format);
 
-	case 22:   param.fourcc = BC_PIX_FMT_NV12;
-		   break;
-
-	case 4 :    param.fourcc = BC_PIX_FMT_UYVY;
-                   break;
-
-	default:   /* Uknown Format */
-                   return -1;
-
-    }
     param.type = BC_MEMORY_USERPTR;
 
     pack_info.params = param;
@@ -354,9 +341,9 @@ gst_buffer_manager_new (GstElement * elem, int fd, int count, GstCaps * caps)
 
     for (i = 0; i < param.count; i++) {
      // TODO: Find correct size here
-      GstBufferClassBuffer *buf = gst_bcbuffer_new (pool, i, param.width*param.height*2, TextureBufsPa[i]);
-  GST_BUFFER_DATA (buf) = (vidStreamBufVa +  param.width*param.height*2*i);
-  GST_BUFFER_SIZE (buf) = param.width*param.height*2;
+	GstBufferClassBuffer *buf = gst_bcbuffer_new (pool, i, param.width*param.height*BPP, TextureBufsPa[i]);
+	GST_BUFFER_DATA (buf) = (vidStreamBufVa +  param.width*param.height*BPP*i);
+	GST_BUFFER_SIZE (buf) = param.width*param.height*BPP;
 
       if (G_UNLIKELY (!buf)) {
         GST_WARNING_OBJECT (pool->elem, "Buffer %d allocation failed", i);

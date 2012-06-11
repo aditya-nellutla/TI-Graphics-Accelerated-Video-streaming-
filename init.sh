@@ -24,11 +24,7 @@ mkfifo -m 644 gstbcack_fifo3
 echo "Starting the Qt in background..."
 ./v3dfxGUI -qws &
 
-echo "Launcing the Renderer in background..."
-./bcRenderer &
 
-sleep 2
-
-echo "Please start your gstreamer pipeline ..."
+echo "Initialization complete, please start renderer and gst pipelines..."
 
 

@@ -63,7 +63,7 @@ GstBufferClassBuffer *bcbuf_queue[MAX_QUEUE]= {NULL, NULL, NULL};
 static GstStaticPadTemplate sink_template = GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
     GST_PAD_ALWAYS,
-    GST_STATIC_CAPS (GST_VIDEO_CAPS_YUV("{NV12, UYVY, YUY2}"))
+    GST_STATIC_CAPS (GST_VIDEO_CAPS_YUV("{I420, YV12, NV12, UYVY, YUYV}"))
     );
 
 GST_DEBUG_CATEGORY (bcsink_debug);

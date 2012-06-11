@@ -1,10 +1,16 @@
 HOW TO USE IT
 -------------
+Please note that this is not production quality code, so the implementation provided may not be optimal.
+This is an experimental drop meant for the users to get started with (multi-channel) video streaming usecase
+with TI-Graphics SDK.
+
 Requirements:
 ============
-	1) TI Linux Graphics SDK.
+	1) TI Linux Graphics SDK - Can be obtained from <ROOT_DIR>/TI_Graphics_SDK/Graphics_SDK_4_06_00_03.bin.
 	2) Open sources Gstreamer installation on TARGET Filesystem.
 	3) CMEM sources for building cmemk module.
+
+Note: The Graphics_SDK_4_06_00_03 has support for I420/YV12 formats with bufferclass driver.
 
 Build and Install:
 ================= 
@@ -15,18 +21,23 @@ Build and Install:
         d) GSTREAMER_SRC_DIR = /path/to/gstreamer/sources/opensource_build
 	e) CROSS_COMPILE= CROSS_COMPILE_PREFIX
 
-Note:  	i) Graphics SDK and installation instructions can be obtsined from here -
+Note:  	i) Graphics SDK build/installation instructions can be obtsined from here -
 	http://processors.wiki.ti.com/index.php/Graphics_SDK_Quick_installation_and_user_guide
 
-	ii)For supporting multichannel video streaming rebuild and install Graphics SDK by modifying the following -
+	ii) For supporting multichannel video streaming rebuild and install Graphics SDK by modifying the following -
 		+	"#define SYS_DEVICE_COUNT 10" 
 			in <GSDK_ROOT>/GFX_Linux_KM/services4/system/ti335x/sysinfo.h
+
+		+	"#define DEVICE_COUNT 4"
+			in <GSDK_ROOT>/GFX_Linux_KM/services4/3rdparty/bufferclass_ti/bc_cat.c
 
 	iii) Platform requires bufferclass_ti.ko and cmemk.ko modules along with pvrsrv and omaplfb drivers.
 		a) User needs to separately build cmemk module and insmod with appropriate arguments.
 		b) Other modules mentioned above will be built as a part of Graphics SDK.
 
-	iv)User should separately build/install open source gstreamer (ARM only) to the TARGET FILE SYSTEM
+	iv) User should separately build/install open source gstreamer (ARM only) to the TARGET FILE SYSTEM
+
+	 v) This package has been validated with arago-static toolchain (for building gstreamer and plugin).
 
 
 2) Edit <gst-plugin_dir>/autogen.sh and add host/prefix values as appropriate
@@ -48,6 +59,7 @@ Note:  	i) Graphics SDK and installation instructions can be obtsined from here 
 	libtool: install: arm-arago-linux-gnueabi-ranlib  <TGTFS_PATH>/usr/lib/gstreamer-0.10/libgstbc.a
 
 6)  Set "INST_DEST" in the <bc_renderer>/Makefile to desirable path to install the binary on <TARGET_FILESYSTEM>.
+	Note: Make sure that the directory exists on the filesystem.
 
 6) Build the renderer sources from <bc_renderer> dir and install using -
 	a) "make" followed by "make install".
@@ -60,7 +72,7 @@ Testing:
 1) On target run the following to test for sucessful installation of plugin -
 	a) gst-inspect bcsink - Displays information about plugin if installed
 
-2) Copy <ROOT_DIR>/vsgui/v3dfxGUI to <TGTFS_PATH>/<INST_DIR> on TARGET
+2) Copy <ROOT_DIR>/vsgui/v3dfxGUI to <TGTFS_PATH>/<INST_DEST> on TARGET
 
 3) Copy <ROOT_DIR>/init.sh to <TGTFS_PATH>/<INST_DIR> on TARGET and set "PATH_TO_CMEM" to location where cmemk.ko is present, edit cmemk parameters as appropriate  -
 	a) cd <TGTFS_PATH>/<INST_DIR>
@@ -68,7 +80,13 @@ Testing:
 		1) It initializes (cmemk, bufferclass_ti) kernel modules.
 		2) Creates appropriate named pipes.
 		3) Starts Qt GUI for enabling touch events.
-		4) Starts the renderer in backgrounds.
+
+4) Start bcRenderer process in the background from the <TGTFS_PATH>/<INST_DIR> as follows -
+	a) ./bcRenderer &
+
+5) Now you are ready to start gstreamer pipelines as shown in "Sample Pipelines" section.
+
+Note: Please note that upto max 4 pipelines can be launched in parallel depending on the available bandwidth.
 
 Sample Pipelines:
 ================
@@ -98,7 +116,8 @@ Launch the following two processes on the target -
 4) AVI/MP4/MPEG video decode:
    -------------------------
 Launch the following two processes on the target -
-	a) gst-launch filesrc location=/sample.avi ! decodebin2 name=dec ! queue ! ffmpegcolorspace !  'video/x-raw-yuv, format=(fourcc)UYVY' ! bcsink
+	a) gst-launch filesrc location=/sample.avi ! decodebin2 name=dec ! bcsink
+	b) gst-launch filesrc location=/sample.mp4 ! decodebin2 name=dec ! bcsink
  
 	Output: You can observe four videotessrc patterns on the target display in one of the four quads.
 
@@ -109,6 +128,7 @@ Feature Additions:
 
 	a) Supports playing multiple videos (upto 4) each launched as a separate instances of  gstreamer as shown above.
 	b) Supports switching between quad mode/ full screen
+	c) Supports I420/YV12 formats with Graphics_SDK_4_06_00_03 available with the current sources.
  
         Note: The performance might vary based on the dimensions of video being decoded.
  
