@@ -104,14 +104,14 @@ Launch the following two processes on the target -
 Launch the following two processes on the target -
 	a) gst-launch v4l2src ! 'video/x-raw-yuv, width=320,height=240,framerate=24/1' ! bcsink &
 
-	Output: You can observe videotessrc pattern on the target display in one of the four quads.
+	Output: You can observe camera capture preview on the target display in one of the four quads.
 
 3) MPEG video decode:
    -----------------
 Launch the following two processes on the target -
 	a) gst-launch filesrc location=/sample.mpg ! mpegdemux ! ffdec_mpegvideo ! ffmpegcolorspace ! 'video/x-raw-yuv, format=(fourcc)UYVY' ! bcsink &
 
-	Output: You can observe four videotessrc patterns on the target display in one of the four quads.
+	Output: You can observe the video being decoded on the target display in one of the four quads.
 
 4) AVI/MP4/MPEG video decode:
    -------------------------
@@ -119,7 +119,7 @@ Launch the following two processes on the target -
 	a) gst-launch filesrc location=/sample.avi ! decodebin2 name=dec ! bcsink
 	b) gst-launch filesrc location=/sample.mp4 ! decodebin2 name=dec ! bcsink
  
-	Output: You can observe four videotessrc patterns on the target display in one of the four quads.
+	Output: You can observe video being decoded on the target display in one of the four quads.
 
 Note: To switch from quad mode to full screen, tap/press on the  desired video window and viceversa to return to quad display.
 
