@@ -21,5 +21,9 @@ Basic documentation
 Contains TI-Graphics SDK installer supporting I420/YV12 formats with bufferclass driver.
 
 
+=== vs_gui ===
+
+Contains Qt widget to handle touch events from the LCD.
+
 -aditya.n@ti.com
 
