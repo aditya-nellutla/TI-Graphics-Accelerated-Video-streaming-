@@ -327,8 +327,10 @@ gst_render_bridge_init (GstBufferClassSink * bcsink, GstBufferClassSinkClass * k
 	printf (" Failed to open bcsink_fifo FIFO - fd: %d\n", fd_bcsink_fifo);
 	exit(0);
   }
-  
-  fd_bcack_fifo = open( BCACK_FIFO_NAME, O_RDONLY );
+
+  /* Set it as non blocking as we expect some delay in buffer unreferencing
+     to account for SGX deferred rendering architecture */
+  fd_bcack_fifo = open( BCACK_FIFO_NAME, O_RDONLY | O_NONBLOCK );
   if(fd_bcack_fifo < 0)
   {
 	printf (" Failed to open bciack_fifo FIFO - fd: %d\n", fd_bcack_fifo);
@@ -586,22 +588,11 @@ gst_render_bridge_show_frame (GstBaseSink * bsink, GstBuffer * buf)
 
   n = read(fd_bcack_fifo, &bcbuf_rec, sizeof(GstBufferClassBuffer *));
 
-	if(n == sizeof(GstBufferClassBuffer *))
-	{
-		/* Delay unreferencing the buffers to account for the deferred rendering architecture of SGX*/
-		if( bcbuf_queue[queue_counter]==NULL )
-		{
-			/* Start queing buffers until full */
-			bcbuf_queue[queue_counter] = bcbuf_rec;
-			queue_counter = (queue_counter + 1)%MAX_QUEUE;
-		}
-		else
-		{
-			gst_buffer_unref(bcbuf_queue[queue_counter]);
-			bcbuf_queue[queue_counter] = bcbuf_rec;
-			queue_counter = (queue_counter + 1)%MAX_QUEUE;
-		}
-	}
+  /* To account for the delay in unreferencing the buffer from the renderer read is non blocking */
+  if(n == sizeof(GstBufferClassBuffer *))
+  {
+	gst_buffer_unref(bcbuf_rec);
+  }
 
 /*****************************************************************
 ******************************************************************/

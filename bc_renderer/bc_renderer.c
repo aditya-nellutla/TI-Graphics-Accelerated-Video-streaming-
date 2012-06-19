@@ -80,13 +80,17 @@ static int setScene();
 #define TEXCOORD_ARRAY	3
 #define MAX_STREAMS 4
 
-// Size of the texture we create
+/* Macro controls the delay factor for unreferencing buffers*/
+#define MAX_QUEUE 3
+
+/* Named Pipes used in the IPC */
 char BCSINK_FIFO_NAME[]="gstbcsink_fifo0";
 char BCINIT_FIFO_NAME[]="gstbcinit_fifo0";
 char BCACK_FIFO_NAME[]="gstbcack_fifo0";
 char INSTANCEID_FIFO_NAME[]="gstinstanceid_fifo";
 char CTRL_FIFO_NAME[]="gstcrtl_fifo";
 
+/* File descriptors corresponding to opened pipes */
 int fd_bcsink_fifo_rec[MAX_STREAMS];
 int fd_bcinit_fifo_rec[MAX_STREAMS];
 int fd_bcack_fifo_rec[MAX_STREAMS];
@@ -97,10 +101,19 @@ int dev_fd1 = -1;
 int dev_fd2 = -1;
 int dev_fd3 = -1;
 
+enum { dev0=0, dev1=1, dev2=2, dev3=3 };
 int tex_obj[4] = {-1, -1, -1, -1};;
+
+/* Buffer to recieve data from bcsink */
+bc_gstpacket bcbuf[MAX_STREAMS];
+
+/* Status variable which checks if a device is active - Set to inactive by default*/
+int dev_thread_status[MAX_STREAMS] = { 0, 0, 0, 0 };
 
 /* Global device id */
 int id = -1;
+
+/* Global flag used for controlling toggling b/w full screen and quad display */
 int full_screen = -1;
 
 PFNGLTEXBINDSTREAMIMGPROC glTexBindStreamIMG = NULL;
@@ -109,6 +122,8 @@ PFNGLTEXBINDSTREAMIMGPROC glTexBindStreamIMG = NULL;
 static int ver_shader, frag_shader;
 int program;
 
+
+/* Fragment and vertex shader code */
 char* fshader_src = "\
 	uniform sampler2D sampler2d;\
 	#ifdef GL_IMG_texture_stream2\n \
@@ -132,11 +147,13 @@ char* vshader_src = "\
 		TexCoord = inTexCoord; \
 	}";
 
-
+/* Variables used for EGL surface/context creation & management */
 EGLDisplay dpy;
 EGLSurface surface = EGL_NO_SURFACE;
 static EGLContext context = EGL_NO_CONTEXT;
 
+
+/* Gets the display resolution from the fbdev */
 int get_disp_resolution(int *w, int *h)
 {
     int fb_fd, ret = -1;
@@ -187,6 +204,7 @@ static void print_err(char *name)
            name, err_str[ecode-EGL_SUCCESS], ecode);
 }
 
+/* Deinitialize EGL */
 void deInitEGL()
 {
 
@@ -198,6 +216,7 @@ void deInitEGL()
     eglTerminate(dpy);
 }
 
+/* Initialize EGL */
 int initEGL(int *surf_w, int *surf_h, int profile)
 {
 
@@ -460,7 +479,7 @@ int setScene()
 /******************************************************************************
 ******************************************************************************/
 
-/* Vertices for rectagle covering the entire display resolution */
+/* Vertices for rectagle covering the display resolution */
 GLfloat rect_vertices[6][3] =
 {   // x     y     z
  
@@ -563,7 +582,7 @@ GLfloat rect_texcoord1[6][2] =
 
 };
 
-/* Draws rectangular quads */
+/* Draws rectangular quads in 1st Quadrant*/
 void drawRect0(int isfullscreen)
 {
     glUseProgram(program);
@@ -589,7 +608,7 @@ void drawRect0(int isfullscreen)
 
 }
 
-/* Draws rectangular quads */
+/* Draws rectangular quads in 2nd Quadrant*/
 void drawRect1(int isfullscreen)
 {
     glUseProgram(program);
@@ -615,7 +634,7 @@ void drawRect1(int isfullscreen)
 
 }
 
-/* Draws rectangular quads */
+/* Draws rectangular quads in 3rd Quadrant*/
 void drawRect2(int isfullscreen)
 {
     glUseProgram(program);
@@ -641,7 +660,7 @@ void drawRect2(int isfullscreen)
 
 }
 
-/* Draws rectangular quads */
+/* Draws rectangular quads in 4th Quadrant*/
 void drawRect3(int isfullscreen)
 {
     glUseProgram(program);
@@ -666,6 +685,166 @@ void drawRect3(int isfullscreen)
     glDisableVertexAttribArray (1);
 
 }
+
+/* Device-0 control thread which receives data from bcsink */
+void * dev0_ctrl_thread()
+{
+	int n;
+	int queue_counter=0;
+	GstBufferClassBuffer *bcbuf_queue[MAX_QUEUE]= {NULL, NULL, NULL};
+
+	while(1)
+	{
+		n=0;
+		/* Reads the packets from the bcsink */
+		n = read(fd_bcsink_fifo_rec[dev0], &bcbuf[dev0], sizeof(bc_gstpacket));
+
+		if(n > 0)
+		{
+			/* Delay unreferencing the buffers to account for the deferred rendering architecture of SGX*/
+			if( bcbuf_queue[queue_counter]==NULL )
+			{
+				/* Start queing buffers until full */
+				bcbuf_queue[queue_counter] = bcbuf[dev0].buf;
+				queue_counter = (queue_counter + 1)%MAX_QUEUE;
+			}
+			else
+			{
+				/* Send ACK to bcsink about completion of render*/
+				n = write(fd_bcack_fifo_rec[dev0], &bcbuf_queue[queue_counter], sizeof(GstBufferClassBuffer*));
+				bcbuf_queue[queue_counter] = bcbuf[dev0].buf;
+				queue_counter = (queue_counter + 1)%MAX_QUEUE;
+			}
+
+		}
+		else
+		{
+			/* This indicates the execution has completed, set thread status to inactive*/
+			dev_thread_status[dev0] = 0;
+			pthread_exit(NULL);
+		}
+	}
+}
+
+/* Device-1 control thread which receives data from bcsink */
+void * dev1_ctrl_thread()
+{
+	int n;
+	int queue_counter=0;
+	GstBufferClassBuffer *bcbuf_queue[MAX_QUEUE]= {NULL, NULL, NULL};
+	while(1)
+	{
+		n=0;
+		/* Reads the packets from the bcsink */
+		n = read(fd_bcsink_fifo_rec[dev1], &bcbuf[dev1], sizeof(bc_gstpacket));
+
+		if(n > 0)
+		{
+			/* Delay unreferencing the buffers to account for the deferred rendering architecture of SGX*/
+			if( bcbuf_queue[queue_counter]==NULL )
+			{
+				/* Start queing buffers until full */
+				bcbuf_queue[queue_counter] = bcbuf[dev1].buf;
+				queue_counter = (queue_counter + 1)%MAX_QUEUE;
+			}
+			else
+			{
+				/* Send ACK to bcsink about completion of render*/
+				n = write(fd_bcack_fifo_rec[dev1], &bcbuf_queue[queue_counter], sizeof(GstBufferClassBuffer*));
+				bcbuf_queue[queue_counter] = bcbuf[dev1].buf;
+				queue_counter = (queue_counter + 1)%MAX_QUEUE;
+			}
+
+		}
+		else
+		{
+			/* This indicates the execution has completed, set thread status to inactive*/
+			dev_thread_status[dev1] = 0;
+			pthread_exit(NULL);
+		}
+	}
+}
+
+/* Device-2 control thread which receives data from bcsink */
+void * dev2_ctrl_thread()
+{
+	int n;
+	int queue_counter=0;
+	GstBufferClassBuffer *bcbuf_queue[MAX_QUEUE]= {NULL, NULL, NULL};
+	while(1)
+	{
+		n=0;
+		/* Reads the packets from the bcsink */
+		n = read(fd_bcsink_fifo_rec[dev2], &bcbuf[dev2], sizeof(bc_gstpacket));
+
+		if(n > 0)
+		{
+			/* Delay unreferencing the buffers to account for the deferred rendering architecture of SGX*/
+			if( bcbuf_queue[queue_counter]==NULL )
+			{
+				/* Start queing buffers until full */
+				bcbuf_queue[queue_counter] = bcbuf[dev2].buf;
+				queue_counter = (queue_counter + 1)%MAX_QUEUE;
+			}
+			else
+			{
+				/* Send ACK to bcsink about completion of render*/
+				n = write(fd_bcack_fifo_rec[dev2], &bcbuf_queue[queue_counter], sizeof(GstBufferClassBuffer*));
+				bcbuf_queue[queue_counter] = bcbuf[dev2].buf;
+				queue_counter = (queue_counter + 1)%MAX_QUEUE;
+			}
+
+		}
+		else
+		{
+			/* This indicates the execution has completed, set thread status to inactive*/
+			dev_thread_status[dev2] = 0;
+			pthread_exit(NULL);
+		}
+	}
+}
+
+/* Device-3 control thread which receives data from bcsink */
+void * dev3_ctrl_thread()
+{
+	int n;
+	int queue_counter=0;
+	GstBufferClassBuffer *bcbuf_queue[MAX_QUEUE]= {NULL, NULL, NULL};
+	while(1)
+	{
+		n=0;
+		/* Reads the packets from the bcsink */
+		n = read(fd_bcsink_fifo_rec[dev3], &bcbuf[dev3], sizeof(bc_gstpacket));
+
+		if(n > 0)
+		{
+			/* Delay unreferencing the buffers to account for the deferred rendering architecture of SGX*/
+			if( bcbuf_queue[queue_counter]==NULL )
+			{
+				/* Start queing buffers until full */
+				bcbuf_queue[queue_counter] = bcbuf[dev3].buf;
+				queue_counter = (queue_counter + 1)%MAX_QUEUE;
+			}
+			else
+			{
+				/* Send ACK to bcsink about completion of render*/
+				n = write(fd_bcack_fifo_rec[dev3], &bcbuf_queue[queue_counter], sizeof(GstBufferClassBuffer*));
+				bcbuf_queue[queue_counter] = bcbuf[dev3].buf;
+				queue_counter = (queue_counter + 1)%MAX_QUEUE;
+			}
+
+		}
+		else
+		{
+			/* This indicates the execution has completed, set thread status to inactive*/
+			dev_thread_status[dev3] = 0;
+			pthread_exit(NULL);
+		}
+	}
+}
+
+/* Based on the deviceid - renders the stream to one of the four quadrants on
+   the display if  the display is non-full screen mode  */
 
 void render(int deviceid, int buf_index)
 {
@@ -697,6 +876,8 @@ void render(int deviceid, int buf_index)
 
 		fscr = 0;
 	}
+
+	/* Based on the active deviceid render to corresponding quad */
 	switch(deviceid)
 	{
 		case 0 :
@@ -726,31 +907,44 @@ void render(int deviceid, int buf_index)
 }
 
 
+/* Responsible for reading the buffer stream from the bcsink plugin via named pipe and
+   calls render() function with correspinding device id. If the video play back is completed
+   or the stream has unexpected packets it aborts rendering and closes corresponding device.*/
+
 void  render_thread(int fd, int devid)
 {
 	int n;
-	bc_gstpacket bcbuf;
 
 	/* return if the device is not yet active */
 	if(fd == -1)
 	{
 		return;
 	}
-	n = read(fd_bcsink_fifo_rec[devid], &bcbuf, sizeof(bc_gstpacket));
-	if(n > 0)
+
+	/***********************************************************
+	   Check if the device is active and call render function.
+	   If the frame is not yet available from the decoder, render
+	   the previous frame. This ensures that we are not blocking
+	   faster decodes to wait for the slower ones.
+	*************************************************************/
+	if(dev_thread_status[devid] != 0)
 	{
-		render(devid, bcbuf.index);
-		n = write(fd_bcack_fifo_rec[devid], &bcbuf.buf, sizeof(GstBufferClassBuffer*));
+		render(devid, bcbuf[devid].index);
 	}
 	else
 	{
+		/* Cleanup - if the device is no longer active */
+
+		glClearColor(1.0, 1.0, 1.0, 1.0);
 		glClear(GL_COLOR_BUFFER_BIT);
+
 		/* close the named pipes which are not in use*/
 		close(fd_bcsink_fifo_rec[devid]);
 		close(fd_bcack_fifo_rec[devid]);
 
 		/* Close the device to be used by other process */
 		close(fd);
+
 		/* Set id to -1 to prevent device to be opened again */
 		id = -1;
 		FILE *fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
@@ -815,7 +1009,7 @@ int init(int dev_fd, int devid)
 			printf (" Failed to open bcack_fifo FIFO - fd: %d\n", fd_bcack_fifo_rec[devid]);
 			goto exit;
 		}
-
+	/* Read initialization parameters sent from bcsink */
         n = read(fd_bcinit_fifo_rec[devid], &initparams, sizeof(gst_initpacket));
 	if(n != -1 )
 	{
@@ -826,7 +1020,7 @@ int init(int dev_fd, int devid)
 			goto exit;
 		}
 	}
-
+	/* Close init pipe as its no longer required */
 	close(fd_bcinit_fifo_rec[devid]);
 
 	/*************************************************************************************
@@ -844,6 +1038,8 @@ int init(int dev_fd, int devid)
 	}
 
 	glTexBindStreamIMG = (PFNGLTEXBINDSTREAMIMGPROC)eglGetProcAddress("glTexBindStreamIMG");
+
+	/* Create Texture handle * with appropriate arguments */
         glGenTextures(1, &tex_obj[devid]);
         glBindTexture(GL_TEXTURE_STREAM_IMG, tex_obj[devid]);
         glTexParameterf(GL_TEXTURE_STREAM_IMG, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -895,7 +1091,7 @@ void * user_ctrl_thread()
 	}
 }
 
-
+/* Looks for new instances of gstreamer launch */
 void * pipe_ctrl_thread()
 {
  	FILE  *fd_instance; 
@@ -915,6 +1111,11 @@ int main(void)
        	int deviceid = -1 ; // Ensure its set to dev0 by default
 	pthread_t thread1;
 	pthread_t thread2;
+	pthread_t dev0_thread;
+	pthread_t dev1_thread;
+	pthread_t dev2_thread;
+	pthread_t dev3_thread;
+
 	/* Ensure the contents are erased and file is created if doesn't exist*/
 	FILE *fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
 	fprintf(fd_instance,"%d",-1);
@@ -946,6 +1147,10 @@ int main(void)
 
 					deviceid = 0;
 					init(dev_fd0, deviceid);
+					n = pthread_create(&dev0_thread, NULL, dev0_ctrl_thread, NULL);
+
+					/* Mark thread is active */
+					dev_thread_status[dev0] = 1;
 				}
 				break;
 
@@ -960,6 +1165,10 @@ int main(void)
 
 					deviceid = 1;
 					init(dev_fd1, deviceid);
+					n = pthread_create(&dev1_thread, NULL, dev1_ctrl_thread, NULL);
+
+					/* Mark thread is active */
+					dev_thread_status[dev1] = 1;
 				}
 				break;
 
@@ -974,6 +1183,10 @@ int main(void)
 
 					deviceid = 2;
 					init(dev_fd2, deviceid);
+					n = pthread_create(&dev2_thread, NULL, dev2_ctrl_thread, NULL);
+
+					/* Mark thread is active */
+					dev_thread_status[dev2] = 1;
 				}
 				break;
 
@@ -985,9 +1198,13 @@ int main(void)
 					fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
 					fprintf(fd_instance,"%d",id);
 					fclose(fd_instance);
-		
+
 					deviceid = 3;
 					init(dev_fd3, deviceid);
+					n = pthread_create(&dev3_thread, NULL, dev3_ctrl_thread, NULL);
+
+					/* Mark thread is active */
+					dev_thread_status[dev3] = 1;
 				}
 				break;
 
@@ -996,6 +1213,7 @@ int main(void)
 				break;
 		}
 
+		/* If any of the bc_cat devices are alive render */
 		if( (dev_fd0 != -1) || (dev_fd1 != -1) || (dev_fd2 != -1)  || (dev_fd3 != -1) )
 		{
 			render_thread(dev_fd0,0);
@@ -1003,6 +1221,8 @@ int main(void)
 			render_thread(dev_fd2,2);
 			render_thread(dev_fd3,3);
 
+			/* eglswapbuffers must be called only after all active devices have finished rendering
+			   inorder to avoid any artifacts due to incomplete/partial frame updates*/
 			eglSwapBuffers(dpy, surface);
 		}
 		else

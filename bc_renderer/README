@@ -2,7 +2,7 @@ Renderer API responsible for rendering the video using IMG Texture streaming API
 
 Note: Set "INST_DEST" in the Makefile to desirable path to install the binary on <TARGET_FILESYSTEM>.
 
-Run the following to install the bimnaruy on to the platform -
+Run the following to install the binary on to the platform -
 
 -  make && make install
 
