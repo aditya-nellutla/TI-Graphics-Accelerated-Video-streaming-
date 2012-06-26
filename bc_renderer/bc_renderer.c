@@ -312,7 +312,7 @@ GLuint m_uiVertexShader, m_uiFragShader;
 /*!****************************************************************************
  @Function		initApplication
  @Return		bool		1 if no error occured
- @Description	Code in initApplication() is used to initialize egl.
+ @Description		Code in initApplication() is used to initialize egl.
 ******************************************************************************/
 int initApplication()
 {
@@ -324,14 +324,14 @@ int initApplication()
 	return 1;
 }
 
-/*!****************************************************************************
+/*!************************************************************************************
  @Function		initView
  @Return		bool		1 if no error occured
- @Description	Code in initView() will be called upon
-				initialization or after a change in the rendering context.
-				Used to initialize variables that are dependant on the rendering
-				context (e.g. textures, vertex buffers, etc.)
-******************************************************************************/
+ @Description		Code in initView() will be called upon 	initialization or after
+			a change in the rendering context. Used to initialize variables
+			that are dependant on the rendering context (e.g. textures,
+			vertex buffers, etc.)
+***************************************************************************************/
 int initView()
 {
 	// Fragment and vertex shaders code
@@ -435,7 +435,8 @@ int initView()
 
 /*!****************************************************************************
  @Function		releaseView
- @Description	Code in releaseView() will be called when the application quits or before a change in the rendering context.
+ @Description	Code in releaseView() will be called when the application quits
+		or before a change in the rendering context.
 ******************************************************************************/
 void releaseView()
 {
@@ -585,7 +586,11 @@ GLfloat rect_texcoord1[6][2] =
 
 };
 
-/* Draws rectangular quads in 1st Quadrant*/
+/*!****************************************************************************
+ @Function		drawRect0
+ @Return		void
+ @Description 		Draws rectangular quads in 1st Quadrant
+******************************************************************************/
 void drawRect0(int isfullscreen)
 {
     glUseProgram(program);
@@ -611,7 +616,11 @@ void drawRect0(int isfullscreen)
 
 }
 
-/* Draws rectangular quads in 2nd Quadrant*/
+/*!****************************************************************************
+ @Function		drawRect1
+ @Return		void
+ @Description 		Draws rectangular quads in 2nd Quadrant
+******************************************************************************/
 void drawRect1(int isfullscreen)
 {
     glUseProgram(program);
@@ -637,7 +646,11 @@ void drawRect1(int isfullscreen)
 
 }
 
-/* Draws rectangular quads in 3rd Quadrant*/
+/*!****************************************************************************
+ @Function		drawRect2
+ @Return		void
+ @Description 		Draws rectangular quads in 3rd Quadrant
+******************************************************************************/
 void drawRect2(int isfullscreen)
 {
     glUseProgram(program);
@@ -663,7 +676,11 @@ void drawRect2(int isfullscreen)
 
 }
 
-/* Draws rectangular quads in 4th Quadrant*/
+/*!****************************************************************************
+ @Function		drawRect3
+ @Return		void
+ @Description 		Draws rectangular quads in 4th Quadrant
+******************************************************************************/
 void drawRect3(int isfullscreen)
 {
     glUseProgram(program);
@@ -689,7 +706,11 @@ void drawRect3(int isfullscreen)
 
 }
 
-/* Device-0 control thread which receives data from bcsink */
+/*!****************************************************************************
+ @Function		dev0_ctrl_thread
+ @Return		void
+ @Description 		Device-0 control thread which receives data from bcsink
+******************************************************************************/
 void * dev0_ctrl_thread()
 {
 	int n;
@@ -729,7 +750,11 @@ void * dev0_ctrl_thread()
 	}
 }
 
-/* Device-1 control thread which receives data from bcsink */
+/*!****************************************************************************
+ @Function		dev1_ctrl_thread
+ @Return		void
+ @Description 		Device-1 control thread which receives data from bcsink
+******************************************************************************/
 void * dev1_ctrl_thread()
 {
 	int n;
@@ -768,7 +793,11 @@ void * dev1_ctrl_thread()
 	}
 }
 
-/* Device-2 control thread which receives data from bcsink */
+/*!****************************************************************************
+ @Function		dev2_ctrl_thread
+ @Return		void
+ @Description 		Device-2 control thread which receives data from bcsink
+******************************************************************************/
 void * dev2_ctrl_thread()
 {
 	int n;
@@ -807,7 +836,11 @@ void * dev2_ctrl_thread()
 	}
 }
 
-/* Device-3 control thread which receives data from bcsink */
+/*!****************************************************************************
+ @Function		dev3_ctrl_thread
+ @Return		void
+ @Description 		Device-3 control thread which receives data from bcsink
+******************************************************************************/
 void * dev3_ctrl_thread()
 {
 	int n;
@@ -846,9 +879,12 @@ void * dev3_ctrl_thread()
 	}
 }
 
-/* Based on the deviceid - renders the stream to one of the four quadrants on
-   the display if  the display is non-full screen mode  */
-
+/*!****************************************************************************
+ @Function		render
+ @Return		void
+ @Description 		Based on the deviceid - renders the stream to the display
+			based on the display parameters passed from the bcsink.
+******************************************************************************/
 void render(int deviceid, int buf_index)
 {
     static int fscr = 0;
@@ -910,10 +946,15 @@ void render(int deviceid, int buf_index)
 }
 
 
-/* Responsible for reading the buffer stream from the bcsink plugin via named pipe and
-   calls render() function with correspinding device id. If the video play back is completed
-   or the stream has unexpected packets it aborts rendering and closes corresponding device.*/
-
+/*!**********************************************************************************
+ @Function		render_thread
+ @Return		void
+ @Description 		Responsible for reading the buffer stream from the bcsink
+			plugin via named pipe and calls render() function with
+			correspinding device id. If the video play back is completed
+			or the stream has unexpected packets it aborts rendering and
+			closes corresponding device.
+**************************************************************************************/
 void  render_thread(int fd, int devid)
 {
 	/* return if the device is not yet active */
@@ -976,6 +1017,12 @@ void  render_thread(int fd, int devid)
 	}
 }
 
+/*!****************************************************************************
+ @Function		init
+ @Return		Returns zero on sucessful completion of init.
+ @Description 		Performs initialization of named pipes, geometry, sets
+			BC physical addresses, generates and binds Textureids
+******************************************************************************/
 int init(int dev_fd, int devid)
 {
 	int n = -1, count, i, j;
@@ -1224,7 +1271,13 @@ exit:
 	return 0;
 }
 
-/* Reads the status to toggle between fullscreen/regular modes */
+/*!**************************************************************************************
+ @Function		user_ctrl_thread
+ @Return		void
+ @Description 		Reads the touch screen coordinates from Qt application and converts
+			the screen to Normalized device Coordinates. Based on the coordinate
+			values sets the status to toggle between fullscreen/regular modes.
+******************************************************************************************/
 void * user_ctrl_thread()
 {
 	int n, res=-1, i;
@@ -1285,7 +1338,11 @@ void * user_ctrl_thread()
 	}
 }
 
-/* Looks for new instances of gstreamer launch */
+/*!**************************************************************************************
+ @Function		pipe_ctrl_thread
+ @Return		void
+ @Description 		Looks for the launch of the new instances of gstreamer.
+******************************************************************************************/
 void * pipe_ctrl_thread()
 {
  	FILE  *fd_instance; 
@@ -1299,6 +1356,11 @@ void * pipe_ctrl_thread()
 	}
 }
 
+/*!**************************************************************************************
+ @Function	 	main
+ @Return		void
+ @Description 		Main function invoked after Application launch.
+******************************************************************************************/
 int main(void)
 {
        	int n=-1;
@@ -1322,7 +1384,8 @@ int main(void)
 		return 0;
 	}
 	initView();
-	
+
+	/* Launch user and pipe control threads */
 	n = pthread_create(&thread1, NULL, pipe_ctrl_thread, NULL);
 	n = pthread_create(&thread2, NULL, user_ctrl_thread, NULL);
 
