@@ -47,7 +47,6 @@
 #include <gst/video/gstvideosink.h>
 
 #include "gst_buffer_manager.h"
-#include "bc_cat.h"
 
 G_BEGIN_DECLS
 
@@ -68,6 +67,10 @@ typedef struct _GstBufferClassSinkClass GstBufferClassSinkClass;
 #define PROP_DEF_QUEUE_SIZE 6
 #define GST_BC_MIN_BUFFERS  2
 #define GST_BC_MAX_BUFFERS 12
+#define MAX_QUEUE 3
+#define MAX_FCOUNT 6
+#define BCIO_FLUSH                BC_IOWR(5)
+#define BPP 2
 
 /**
  * GstBufferClassSink:
@@ -91,13 +94,6 @@ typedef struct gstpacket
 	GstBufferClassBuffer *buf;
 	int index;
 }bc_gstpacket;
-
-typedef struct gst_initpacket
-{
-	unsigned long phyaddr;
-	bc_buf_params_t params;
-}gst_initpacket;
-
 
 struct _GstBufferClassSinkClass
 {

@@ -6,7 +6,7 @@
 
 QT       += core gui
 
-TARGET = v3dfxGUI
+TARGET = vsGUI
 TEMPLATE = app
 
 

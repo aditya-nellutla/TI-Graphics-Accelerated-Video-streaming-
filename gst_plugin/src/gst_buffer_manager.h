@@ -42,6 +42,7 @@
 #define __GST_BC_BUFFERPOOL_H__
 
 #include <gst/gst.h>
+#include "bc_cat.h"
 
 G_BEGIN_DECLS
 
@@ -122,6 +123,16 @@ struct _GstBufferClassBufferPool
 
 };
 
+typedef struct gst_initpacket
+{
+	unsigned long phyaddr;
+	bc_buf_params_t params;
+	float xpos;
+	float  ypos;
+	float width;
+	float height;
+}gst_initpacket;
+
 struct _GstBufferClassBufferPoolClass
 {
   GstMiniObjectClass parent_class;
@@ -129,8 +140,7 @@ struct _GstBufferClassBufferPoolClass
 
 GType gst_buffer_manager_get_type (void);
 
-GstBufferClassBufferPool *gst_buffer_manager_new (GstElement * elem, int fd,
-    int count, GstCaps * caps);
+GstBufferClassBufferPool *gst_buffer_manager_new (GstElement * elem, gst_initpacket pack_info, int count, GstCaps * caps);
 void gst_buffer_manager_dispose (GstBufferClassBufferPool *pool);
 GstCaps *gst_buffer_manager_get_caps (GstBufferClassBufferPool * pool);
 GstBufferClassBuffer *gst_buffer_manager_get (GstBufferClassBufferPool * pool);

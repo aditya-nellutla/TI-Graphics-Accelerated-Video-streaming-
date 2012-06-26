@@ -60,8 +60,6 @@
 #include<stdio.h>
 #include <cmem.h>
 
-#define BCIO_FLUSH                BC_IOWR(5)
-#define MAX_FCOUNT 8
 GST_DEBUG_CATEGORY_EXTERN (bcsink_debug);
 #define GST_CAT_DEFAULT bcsink_debug
 
@@ -70,8 +68,6 @@ static CMEM_AllocParams cmem_params = { CMEM_POOL, CMEM_CACHED, 4096 };
 /* round X up to a multiple of Y:
  */
 #define CEIL(X,Y)  ((Y) * ( ((X)/(Y)) + (((X)%(Y)==0)?0:1) ))
-
-#define BPP 2
 
 /*
  * GstBufferClassBuffer:
@@ -263,7 +259,7 @@ unsigned long TextureBufsPa[MAX_FCOUNT];
  * @return the bufferpool or <code>NULL</code> if error
  */
 GstBufferClassBufferPool *
-gst_buffer_manager_new (GstElement * elem, int fd, int count, GstCaps * caps)
+gst_buffer_manager_new (GstElement * elem, gst_initpacket pack_info, int count, GstCaps * caps)
 {
   GstBufferClassBufferPool *pool = NULL;
   GstVideoFormat format;
@@ -271,7 +267,6 @@ gst_buffer_manager_new (GstElement * elem, int fd, int count, GstCaps * caps)
   void          *vidStreamBufVa;
   unsigned long vidStreamBufPa;
   int n, i;
-  gst_initpacket pack_info;
   if (gst_video_format_parse_caps(caps, &format, &width, &height)) {
     bc_buf_params_t param;
   

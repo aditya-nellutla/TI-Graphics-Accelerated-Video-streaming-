@@ -55,7 +55,6 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
-#define MAX_QUEUE 3
 
 /*Used for unreferencing buffers for deferred rendering architecture */
 GstBufferClassBuffer *bcbuf_queue[MAX_QUEUE]= {NULL, NULL, NULL};
@@ -80,10 +79,10 @@ pthread_mutex_t ctrlmutex = PTHREAD_MUTEX_INITIALIZER;
 int fd_bcsink_fifo;
 int fd_bcinit_fifo;
 int fd_bcack_fifo;
-#define MAX_FCOUNT 6
 extern unsigned long TextureBufsPa[MAX_FCOUNT];
 pthread_mutex_t initmutex = PTHREAD_MUTEX_INITIALIZER;
-
+/* Passes the configuration display parameters from cmd line */
+static gst_initpacket pack_info;
 /* Properties */
 enum
 {
@@ -91,6 +90,10 @@ enum
   PROP_DEVICE,
   PROP_QUEUE_SIZE,
   PROP_GL_EXAMPLE,
+  PROP_XPOS,
+  PROP_YPOS,
+  PROP_WIDTH,
+  PROP_HEIGHT,
 };
 
 /* Signals */
@@ -187,6 +190,35 @@ gst_render_bridge_class_init (GstBufferClassSinkClass * klass)
           PROP_DEF_DEVICE, G_PARAM_READWRITE));
 
   /**
+   * GstBufferClassSink:device
+   *
+   * Provides the display configuration parameters.
+   */
+  g_object_class_install_property (gobject_class, PROP_XPOS,
+      g_param_spec_float ("x-pos",
+          "Display config parameters",
+          "Specifies normalized x-cordinate for the video"
+          "on the display", -1, 1, 0, G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, PROP_YPOS,
+      g_param_spec_float ("y-pos",
+          "Display config parameters",
+          "Specifies normalized y-cordinate for the video"
+          "on the display", -1, 1, 1, G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, PROP_WIDTH,
+      g_param_spec_float ("width",
+          "Display config parameters",
+          "Specifies the width for the video"
+          "on the display", 0, 2, 0, G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, PROP_HEIGHT,
+      g_param_spec_float ("height",
+          "Display config parameters",
+          "Specifies the height for the video"
+          "on the display", 0, 2, 0, G_PARAM_READWRITE));
+
+  /**
    * GstBufferClassSink:queue-size
    *
    * Number of buffers to be enqueued in the driver in streaming mode
@@ -207,7 +239,7 @@ gst_render_bridge_class_init (GstBufferClassSinkClass * klass)
       g_param_spec_uint ("gl-example",
           "Whether to use OpenGLES 1.x or 2.x example",
           "Controls which example 3d code to use if application does not register "
-          "it's own render callback", 1, 2, 1, G_PARAM_WRITABLE));
+          "it's own render callback", 1, 2, 1, G_PARAM_READWRITE));
 
 
   /**
@@ -336,6 +368,11 @@ gst_render_bridge_init (GstBufferClassSink * bcsink, GstBufferClassSinkClass * k
 	printf (" Failed to open bciack_fifo FIFO - fd: %d\n", fd_bcack_fifo);
 	exit(0);
   }
+	/*Initialize packet dat with default values*/
+	pack_info.xpos =0;
+	pack_info.ypos =0;
+	pack_info.width =0;
+	pack_info.height =0;
 
 }
 
@@ -359,29 +396,44 @@ gst_render_bridge_finalize (GstBufferClassSink * bcsink)
   G_OBJECT_CLASS (parent_class)->finalize ((GObject *) (bcsink));
 }
 
-
 static void
 gst_render_bridge_set_property (GObject * object,
     guint prop_id, const GValue * value, GParamSpec * pspec)
 {
   GstBufferClassSink *bcsink = GST_BCSINK (object);
-
+  int temp;
   switch (prop_id) {
-    case PROP_DEVICE:{
+    case PROP_DEVICE:
      // g_free (bcsink->videodev);
      // bcsink->videodev = g_value_dup_string (value);
       break;
-    }
-    case PROP_QUEUE_SIZE:{
+
+    case PROP_QUEUE_SIZE:
       bcsink->num_buffers = g_value_get_uint (value);
       break;
-    }
-    default:{
+
+    case PROP_XPOS:
+	pack_info.xpos = g_value_get_float (value);
+	break;
+
+    case PROP_YPOS:
+	pack_info.ypos = g_value_get_float (value);
+	break;
+
+    case PROP_WIDTH:
+	pack_info.width = g_value_get_float (value);
+	break;
+
+    case PROP_HEIGHT:
+	pack_info.height = g_value_get_float (value);
+	break;
+
+    default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
     }
-  }
 }
+
 
 
 static void
@@ -481,7 +533,7 @@ gst_render_bridge_set_caps (GstBaseSink * bsink, GstCaps * caps)
       "constructing bufferpool with caps: %" GST_PTR_FORMAT, caps);
 
   bcsink->pool =
-      gst_buffer_manager_new (GST_ELEMENT (bcsink), /*bcsink->fd*/ -1,
+      gst_buffer_manager_new (GST_ELEMENT (bcsink), pack_info,
       bcsink->num_buffers, caps);
   if (!bcsink->pool) {
 	return FALSE;

@@ -58,43 +58,23 @@ Widget::~Widget()
     delete ui;
 }
 
+struct position_vector
+{
+	float x_cord;
+	float y_cord;
+};
 
 void Widget::mousePressEvent(QMouseEvent *event)
 {
     float nxpos, nypos;
     char CTRL_FIFO_NAME[]="gstcrtl_fifo";
     int fd, res;
+    struct position_vector pos;
 
     fd = open(CTRL_FIFO_NAME, O_WRONLY);
 
-    nxpos = ((float)event->x())/width();
-    nypos = ((float)event->y())/height();
-
-    if((nxpos < 0.5) && (nypos < 0.5))
-    {
-        res = 0;
-        write(fd, &res, sizeof(int));
-        printf ("Quad-1  X Pos: %f \t Y Pos: %f\n", nxpos, nypos);
-    }
-
-    if((nxpos > 0.5) && (nypos < 0.5))
-    {
-        res = 1;
-        printf ("Quad-2  X Pos: %f \t Y Pos: %f\n", nxpos, nypos);
-        write(fd, &res, sizeof(int));
-    }
-
-    if((nxpos < 0.5) && (nypos > 0.5))
-    {
-        res = 2;
-        printf ("Quad-3  X Pos: %f \t Y Pos: %f\n", nxpos, nypos);
-        write(fd, &res, sizeof(int));
-    }
-
-    if((nxpos > 0.5) && (nypos > 0.5))
-    {
-        res = 3;
-        printf ("Quad-4  X Pos: %f \t Y Pos: %f\n", nxpos, nypos);
-        write(fd, &res, sizeof(int));
-    }
+   /* Get the screen position and communicate to the renderer */
+    pos.x_cord = ((float)event->x())/width();
+    pos.y_cord = ((float)event->y())/height();
+    write(fd, &pos, sizeof(struct position_vector));
 }

@@ -113,6 +113,9 @@ int dev_thread_status[MAX_STREAMS] = { 0, 0, 0, 0 };
 /* Global device id */
 int id = -1;
 
+/* Required to store coordinates corresponding bccat device instance */
+float device_coordinates[4][4];
+
 /* Global flag used for controlling toggling b/w full screen and quad display */
 int full_screen = -1;
 
@@ -913,8 +916,6 @@ void render(int deviceid, int buf_index)
 
 void  render_thread(int fd, int devid)
 {
-	int n;
-
 	/* return if the device is not yet active */
 	if(fd == -1)
 	{
@@ -977,7 +978,7 @@ void  render_thread(int fd, int devid)
 
 int init(int dev_fd, int devid)
 {
-	int n = -1, count;
+	int n = -1, count, i, j;
 	gst_initpacket initparams;
 	bc_buf_ptr_t buf_pa;
 
@@ -1001,8 +1002,8 @@ int init(int dev_fd, int devid)
 			printf (" Failed to open bcsink_fifo FIFO - fd: %d\n", fd_bcsink_fifo_rec[devid]);
 			goto exit;
 		}
-	
-		/* Make read non-blocking */	
+
+		/* Make read non-blocking */
 		fd_bcack_fifo_rec[devid] = open( BCACK_FIFO_NAME, O_RDWR | O_NONBLOCK);
 		if(fd_bcack_fifo_rec[devid] < 0)
 		{
@@ -1018,6 +1019,175 @@ int init(int dev_fd, int devid)
     			printf("Error: failed to get requested buffers\n");
 			close(fd_bcinit_fifo_rec);
 			goto exit;
+		}
+
+		/* Take parameters passed from bcsink if the height/width are non-zero */
+		if((initparams.height != 0) && (initparams.width != 0))
+		{
+			/* Calculate the positional parameters based on the normalized coordinates passed to the bcsink */
+			GLfloat rect_vert[6][3] =
+			{   // x     y     z
+
+			   /* 1st Traingle */
+			    {initparams.xpos,                    initparams.ypos,                         0.0}, // 0
+			    {initparams.xpos,                    initparams.ypos - initparams.height,     0.0}, // 1
+			    {initparams.xpos + initparams.width, initparams.ypos,                         0.0}, // 2
+
+			   /* 2nd Traingle */
+			    {initparams.xpos + initparams.width,  initparams.ypos,                         0.0}, // 0
+			    {initparams.xpos,                     initparams.ypos - initparams.height,     0.0}, // 1
+			    {initparams.xpos + initparams.width,  initparams.ypos - initparams.height,     0.0}, // 2
+			};
+
+			/* Store positional vetors associated with the device - i */
+			device_coordinates[devid][0] = rect_vert[0][0];
+			device_coordinates[devid][1] = rect_vert[0][1];
+			device_coordinates[devid][2] = rect_vert[5][0];
+			device_coordinates[devid][3] = rect_vert[5][1];
+
+			/* Over write default values if the params are passed from cmd line */
+			switch(devid)
+			{
+				case 0:
+					for(i=0; i<6; i++)
+						for(j=0; j<3; j++)
+							rect_vertices0[i][j] = rect_vert[i][j];
+					break;
+
+				case 1:
+					for(i=0; i<6; i++)
+						for(j=0; j<3; j++)
+							rect_vertices1[i][j] = rect_vert[i][j];
+					break;
+
+				case 2:
+					for(i=0; i<6; i++)
+						for(j=0; j<3; j++)
+							rect_vertices2[i][j] = rect_vert[i][j];
+					break;
+
+				case 3:
+					for(i=0; i<6; i++)
+						for(j=0; j<3; j++)
+							rect_vertices3[i][j] = rect_vert[i][j];
+					break;
+
+			}
+		}
+		else
+		{
+			/* Restore default values as there are chances of them being over written in previous runs */
+			switch(devid)
+			{
+				case 0:
+					{
+						GLfloat rect_vert[6][3] =
+						{   // x     y     z
+						   /* 1st Traingle */
+						    {-1.0,  1.0,  0.0}, // 0
+						    {-1.0,  0.0,  0.0}, // 1
+						    { 0.0,  1.0,  0.0}, // 2
+
+						   /* 2nd Traingle */
+						    { 0.0,  1.0,  0.0}, // 1
+						    {-1.0, -0.0,  0.0}, // 0
+						    { 0.0, -0.0,  0.0}, // 2
+						};
+
+						/* Store positional vetors associated with the device - i */
+						device_coordinates[devid][0] = rect_vert[0][0];
+						device_coordinates[devid][1] = rect_vert[0][1];
+						device_coordinates[devid][2] = rect_vert[5][0];
+						device_coordinates[devid][3] = rect_vert[5][1];
+
+						for(i=0; i<6; i++)
+							for(j=0; j<3; j++)
+								rect_vertices0[i][j] = rect_vert[i][j];
+					}
+					break;
+
+				case 1:
+					{
+						GLfloat rect_vert[6][3] =
+						{   // x     y     z
+						   /* 1st Traingle */
+						    {-0.0,  1.0,  0.0}, // 0
+						    {-0.0, -0.0,  0.0}, // 1
+						    { 1.0,  1.0,  0.0}, // 2
+
+						   /* 2nd Traingle */
+						    { 1.0,  1.0,  0.0}, // 1
+						    {-0.0, -0.0,  0.0}, // 0
+						    { 1.0, -0.0,  0.0}, // 2
+						};
+
+						/* Store positional vetors associated with the device - i */
+						device_coordinates[devid][0] = rect_vert[0][0];
+						device_coordinates[devid][1] = rect_vert[0][1];
+						device_coordinates[devid][2] = rect_vert[5][0];
+						device_coordinates[devid][3] = rect_vert[5][1];
+
+						for(i=0; i<6; i++)
+							for(j=0; j<3; j++)
+								rect_vertices1[i][j] = rect_vert[i][j];
+					}
+					break;
+
+				case 2:
+					{
+						GLfloat rect_vert[6][3] =
+						{   // x     y     z
+						   /* 1st Traingle */
+						    {-1.0,  0.0,  0.0}, // 0
+						    {-1.0, -1.0,  0.0}, // 1
+						    { 0.0,  0.0,  0.0}, // 2
+
+						   /* 2nd Traingle */
+						    { 0.0,  0.0,  0.0}, // 1
+						    {-1.0, -1.0,  0.0}, // 0
+						    { 0.0, -1.0,  0.0}, // 2
+						};
+
+						/* Store positional vetors associated with the device - i */
+						device_coordinates[devid][0] = rect_vert[0][0];
+						device_coordinates[devid][1] = rect_vert[0][1];
+						device_coordinates[devid][2] = rect_vert[5][0];
+						device_coordinates[devid][3] = rect_vert[5][1];
+
+						for(i=0; i<6; i++)
+							for(j=0; j<3; j++)
+								rect_vertices2[i][j] = rect_vert[i][j];
+					}
+					break;
+
+				case 3:
+					{
+						GLfloat rect_vert[6][3] =
+						{   // x     y     z
+						   /* 1st Traingle */
+						    {-0.0,  0.0,  0.0}, // 0
+						    {-0.0, -1.0,  0.0}, // 1
+						    { 1.0,  0.0,  0.0}, // 2
+
+						   /* 2nd Traingle */
+						    { 1.0,  0.0,  0.0}, // 1
+						    {-0.0, -1.0,  0.0}, // 0
+						    { 1.0, -1.0,  0.0}, // 2
+						};
+
+						/* Store positional vetors associated with the device - i */
+						device_coordinates[devid][0] = rect_vert[0][0];
+						device_coordinates[devid][1] = rect_vert[0][1];
+						device_coordinates[devid][2] = rect_vert[5][0];
+						device_coordinates[devid][3] = rect_vert[5][1];
+
+						for(i=0; i<6; i++)
+							for(j=0; j<3; j++)
+								rect_vertices3[i][j] = rect_vert[i][j];
+					}
+					break;
+
+			}
 		}
 	}
 	/* Close init pipe as its no longer required */
@@ -1054,16 +1224,40 @@ exit:
 	return 0;
 }
 
-/* Reads the status to toggle between fullscreen/quad modes */
+/* Reads the status to toggle between fullscreen/regular modes */
 void * user_ctrl_thread()
 {
-	int n, res=-1;
+	int n, res=-1, i;
+	struct position_vector
+	{
+		float x_cord;
+		float y_cord;
+	}pos;
+
 	fd_ctrl_fifo =	open(CTRL_FIFO_NAME, O_RDONLY);
 	while(1)
 	{
-		n = read(fd_ctrl_fifo, &res, sizeof(int));
+		res = -1;
+		n = read(fd_ctrl_fifo, &pos, sizeof(struct position_vector));
+
+		/* Convet touch co-ordinates to normalized device coordinates for comparison */
+		pos.x_cord = pos.x_cord*2 -1;
+		pos.y_cord = 1 - pos.y_cord*2;
+
+		/* Scan bottom-up as the last device shows up on the top */
+		for(i=MAX_STREAMS-1; i>=0; i--)
+		{
+			/* Check if the screen coordinates interscet with active device coordinates */
+			if(( pos.x_cord > device_coordinates[i][0] ) && ( pos.x_cord < device_coordinates[i][2]) && ( pos.y_cord < device_coordinates[i][1] ) && ( pos.y_cord > device_coordinates[i][3] ))
+			{
+				/* Device coordinates Intersect with screen cordinates - set the device number*/
+				res = i;
+				break;
+			}
+		}
 		if(full_screen != -1)
 		{
+			/* Reset to default */
 			full_screen = -1;
 		}
 		else

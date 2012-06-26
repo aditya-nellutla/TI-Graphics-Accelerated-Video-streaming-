@@ -6,11 +6,11 @@ with TI-Graphics SDK.
 
 Requirements:
 ============
-	1) TI Linux Graphics SDK - Can be obtained from <ROOT_DIR>/TI_Graphics_SDK/Graphics_SDK_4_06_00_03.bin.
+	1) TI Linux Graphics SDK - Can be obtained from (http://software-dl.ti.com/dsps/dsps_public_sw/sdo_sb/targetcontent/gfxsdk/4_06_00_03/index_FDS.html).
 	2) Open sources Gstreamer installation on TARGET Filesystem.
 	3) CMEM sources for building cmemk module.
 
-Note: The Graphics_SDK_4_06_00_03 has support for I420/YV12 formats with bufferclass driver.
+Note: The Graphics_SDK_4_06_00_03 onwards has support for I420/YV12 formats with bufferclass driver.
 
 Build and Install:
 ================= 
@@ -72,9 +72,10 @@ Testing:
 1) On target run the following to test for sucessful installation of plugin -
 	a) gst-inspect bcsink - Displays information about plugin if installed
 
-2) Copy <ROOT_DIR>/vsgui/v3dfxGUI to <TGTFS_PATH>/<INST_DEST> on TARGET
+2) Copy <ROOT_DIR>/vsgui/vsGUI to <TGTFS_PATH>/<INST_DEST> on TARGET
 
-3) Copy <ROOT_DIR>/init.sh to <TGTFS_PATH>/<INST_DIR> on TARGET and set "PATH_TO_CMEM" to location where cmemk.ko is present, edit cmemk parameters as appropriate  -
+3) Copy <ROOT_DIR>/init.sh to <TGTFS_PATH>/<INST_DIR> on TARGET and set "PATH_TO_CMEM" to location where cmemk.ko is present.
+	a) Edit cmemk parameters as appropriate - For multichannel video streaming, allocate the memory into as many pools as the channels.
 	a) cd <TGTFS_PATH>/<INST_DIR>
 	b) execute ./init.sh
 		1) It initializes (cmemk, bufferclass_ti) kernel modules.
@@ -88,13 +89,65 @@ Testing:
 
 Note: Please note that upto max 4 pipelines can be launched in parallel depending on the available bandwidth.
 
+Normalized Device Co-Ordinates and bcSink:
+========================================
+
+	The Normalized Device Coordinate (NDC) space ranges from -1.0 to 1.0 in both x and y. This space is device independent
+and appears identical for all the platforms. Refer the following figure to see the organization of the NDC space.
+
+      (-1.0, 1.0)      (0.0, 1.0)       (1.0, 1.0)
+		------------------------
+		|	    |		|
+		|     1	    | 	 2	|
+		|     	    |	 	|
+		| 	    |(0.0,0.0)	|
+     (-1.0, 0.0)|-----------------------|(1.0, 0.0)
+		| 	    |		|
+		| 	    |		|
+		|     3     |	 4	|
+		| 	    |		|
+		 ------------------------
+   	 (-1.0, -1.0)	(0.0, -1.0)	 (1.0, -1.0)
+
+
+	a) The co-ordinate values are floating point numbers ranging from [-1.0. 1.0] both in x and y.
+	b) The Width and Height are positive floating point numbers in the range [0.0, 2.0].
+	c) The top left corner (-1.0, 1.0) is considered as the origin.
+	d) Please see the examples below to understand how to specify the dimensions from cmdline to bcsink  -
+
+		i) Quadant-1
+			<gst-launch ...> ! bcsink x-pos=-1.0 y-pos=1.0 width=1.0 height=1.0
+
+		ii) Quadant-2
+			<gst-launch ...> ! bcsink x-pos=0.0 y-pos=1.0 width=1.0 height=1.0
+
+		iii) Quadant-3
+			<gst-launch ...> ! bcsink x-pos=-1.0 y-pos=0.0 width=1.0 height=1.0
+
+		iv) Quadant-4
+			<gst-launch ...> ! bcsink x-pos=0.0 y-pos=0.0 width=1.0 height=1.0
+
+		iv) Full Screen
+			<gst-launch ...> ! bcsink x-pos=-1.0 y-pos=1.0 width=2.0 height=2.0
+
+
+Note:	1) Users can specify any arbitrary values as parameters to bcsink in the valid range.
+====
+	2) Incase of overlap the instances corresponding to the higher device numbers are shown on the top.
+	   For example, launching four instances of bcsink with overlaps, the first instance corresponding to device-0 is the
+           bottom most followed by the instances corresponding to device-1, device-2 and device-3 respectively.
+
+	3) If no parameters are specified to the bcsink, the default values are assumed i.e, the instance corresponding to device-0
+	   is associated with Quadrant-1, device-1 with Quadrant-2 and so on..
+
+
 Sample Pipelines:
 ================
 
 1) Default video test:
    ------------------
 Launch the following two processes on the target -
-	a) gst-launch videotestsrc ! 'video/x-raw-yuv, format=(fourcc)UYVY, width=320, height=240, framerate=24/1' ! bcsink &
+	a) gst-launch videotestsrc ! 'video/x-raw-yuv, format=(fourcc)UYVY, width=320, height=240, framerate=24/1' ! bcsink [x-pos=<x-cord> y-pos=<y-cord> width=<width> height=<height> ] &
 
 	Output: You can observe videotessrc pattern on the target display in one of the four quads.
 		see <documentation>/Output.jpg
@@ -109,27 +162,28 @@ Launch the following two processes on the target -
 3) MPEG video decode:
    -----------------
 Launch the following two processes on the target -
-	a) gst-launch filesrc location=/sample.mpg ! mpegdemux ! ffdec_mpegvideo ! ffmpegcolorspace ! 'video/x-raw-yuv, format=(fourcc)UYVY' ! bcsink &
+	a) gst-launch filesrc location=/sample.mpg ! mpegdemux ! ffdec_mpegvideo ! ffmpegcolorspace ! 'video/x-raw-yuv, format=(fourcc)UYVY' ! bcsink [x-pos=<x-cord> y-pos=<y-cord> width=<width> height=<height>] &
 
 	Output: You can observe the video being decoded on the target display in one of the four quads.
 
 4) AVI/MP4/MPEG video decode:
    -------------------------
 Launch the following two processes on the target -
-	a) gst-launch filesrc location=/sample.avi ! decodebin2 name=dec ! bcsink
-	b) gst-launch filesrc location=/sample.mp4 ! decodebin2 name=dec ! bcsink
+	a) gst-launch filesrc location=/sample.avi ! decodebin2 name=dec ! bcsink [x-pos=<x-cord> y-pos=<y-cord> width=<width> height=<height>]
+	b) gst-launch filesrc location=/sample.mp4 ! decodebin2 name=dec ! bcsink [x-pos=<x-cord> y-pos=<y-cord> width=<width> height=<height>]
  
 	Output: You can observe video being decoded on the target display in one of the four quads.
 
-Note: To switch from quad mode to full screen, tap/press on the  desired video window and viceversa to return to quad display.
+Note: To switch from regualr mode to full screen, tap/press on the  desired video window and viceversa to return to regular display.
 
 Feature Additions:
 =================
 
-	a) Supports playing multiple videos (upto 4) each launched as a separate instances of  gstreamer as shown above.
-	b) Supports switching between quad mode/ full screen
-	c) Supports I420/YV12 formats with Graphics_SDK_4_06_00_03 available with the current sources.
+	a) Supports playing multiple videos (upto 4) each launched as a separate instances of gstreamer as shown above.
+	b) Supports switching between quad mode/ full screen.
+	c) Supports arbitrary resolutions for the video from commandline.
+	d) Supports I420/YV12 formats with Graphics_SDK_4_06_00_03 and above.
  
         Note: The performance might vary based on the dimensions of video being decoded.
  
-Note:  Input video stream dimensions for a given channel must remain same through out.
+Note:  Input video stream dimensions and color formats for a given channel must remain same through out.
