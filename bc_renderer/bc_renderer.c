@@ -84,11 +84,11 @@ static int setScene();
 #define MAX_QUEUE 3
 
 /* Named Pipes used in the IPC */
-char BCSINK_FIFO_NAME[]="gstbcsink_fifo0";
-char BCINIT_FIFO_NAME[]="gstbcinit_fifo0";
-char BCACK_FIFO_NAME[]="gstbcack_fifo0";
-char INSTANCEID_FIFO_NAME[]="gstinstanceid_fifo";
-char CTRL_FIFO_NAME[]="gstcrtl_fifo";
+char BCSINK_FIFO_NAME[]="/opt/gstbc/gstbcsink_fifo0";
+char BCINIT_FIFO_NAME[]="/opt/gstbc/gstbcinit_fifo0";
+char BCACK_FIFO_NAME[]="/opt/gstbc/gstbcack_fifo0";
+char INSTANCEID_FIFO_NAME[]="/opt/gstbc/gstinstanceid_fifo";
+char CTRL_FIFO_NAME[]="/opt/gstbc/gstcrtl_fifo";
 
 /* File descriptors corresponding to opened pipes */
 int fd_bcsink_fifo_rec[MAX_STREAMS];

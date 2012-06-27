@@ -16,7 +16,7 @@ INCS     ?= -I../gst_plugin/src \
 LIB_PATH ?= -L$(GSDK_ROOT)/gfx_rel_es8.x \
             -Wl,--rpath=$(GSDK_ROOT)/gfx_rel_es8.x \
 
-INST_DEST    ?= $(TGTFS_PATH)/opt/gstbc
+INST_DEST := $(TGTFS_PATH)/opt/gstbc
 
 CFLAGS   := -W -Wall -O2 -DLINUX $(INCS)
 LIBS     := -lEGL
@@ -41,6 +41,8 @@ $(OBJFILES):	%.o: %.c $(HEADRERS)
 	$(CX) -c $< -o $@ $(CFLAGS)
 
 install:	$(TARGET)
+	@mkdir -p $(INST_DEST)
+	@cp ../init.sh $(INST_DEST)
 	install -m 0755 $^ $(INST_DEST)
 
 uninstall:

@@ -58,13 +58,10 @@ Note:  	i) Graphics SDK build/installation instructions can be obtsined from her
 	libtool: install: chmod 644  <TGTFS_PATH>/usr/lib/gstreamer-0.10/libgstbc.a
 	libtool: install: arm-arago-linux-gnueabi-ranlib  <TGTFS_PATH>/usr/lib/gstreamer-0.10/libgstbc.a
 
-6)  Set "INST_DEST" in the <bc_renderer>/Makefile to desirable path to install the binary on <TARGET_FILESYSTEM>.
-	Note: Make sure that the directory exists on the filesystem.
-
 6) Build the renderer sources from <bc_renderer> dir and install using -
 	a) "make" followed by "make install".
 	
-	The above step installs bcRenderer to <INST_DEST> dir.
+	The above step installs 'bcRenderer' and 'init.sh' to (" <TGTFS_PATH>/opt/gstbc") dir.
 
 Testing:
 =======
@@ -74,7 +71,8 @@ Testing:
 
 2) Copy <ROOT_DIR>/vsgui/vsGUI to <TGTFS_PATH>/<INST_DEST> on TARGET
 
-3) Copy <ROOT_DIR>/init.sh to <TGTFS_PATH>/<INST_DIR> on TARGET and set "PATH_TO_CMEM" to location where cmemk.ko is present.
+3) Copy <ROOT_DIR>/init.sh to <TGTFS_PATH>/<INST_DIR> on TARGET (if not already present) and edit init.sh as follows -
+	a) Set "PATH_TO_CMEM" to location where cmemk.ko is present.
 	a) Edit cmemk parameters as appropriate - For multichannel video streaming, allocate the memory into as many pools as the channels.
 	a) cd <TGTFS_PATH>/<INST_DIR>
 	b) execute ./init.sh

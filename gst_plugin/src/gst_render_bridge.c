@@ -70,10 +70,10 @@ GST_DEBUG_CATEGORY (bcsink_debug);
 
 #define PROP_DEF_DEVICE             "/dev/bccat0"
 /* FIFO PIPE for communication b/w sink and Texture streaming API */
-char BCSINK_FIFO_NAME[]= "gstbcsink_fifo0";
-char BCINIT_FIFO_NAME[]= "gstbcinit_fifo0";
-char BCACK_FIFO_NAME[]= "gstbcack_fifo0";
-char INSTANCEID_FIFO_NAME[]="gstinstanceid_fifo";
+char BCSINK_FIFO_NAME[]= "/opt/gstbc/gstbcsink_fifo0";
+char BCINIT_FIFO_NAME[]= "/opt/gstbc/gstbcinit_fifo0";
+char BCACK_FIFO_NAME[]= "/opt/gstbc/gstbcack_fifo0";
+char INSTANCEID_FIFO_NAME[]="/opt/gstbc/gstinstanceid_fifo";
 
 pthread_mutex_t ctrlmutex = PTHREAD_MUTEX_INITIALIZER;
 int fd_bcsink_fifo;

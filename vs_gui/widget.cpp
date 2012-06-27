@@ -67,7 +67,7 @@ struct position_vector
 void Widget::mousePressEvent(QMouseEvent *event)
 {
     float nxpos, nypos;
-    char CTRL_FIFO_NAME[]="gstcrtl_fifo";
+    char CTRL_FIFO_NAME[]="/opt/gstbc/gstcrtl_fifo";
     int fd, res;
     struct position_vector pos;
 
