@@ -483,7 +483,7 @@ int setScene()
 /******************************************************************************
 ******************************************************************************/
 
-/* Vertices for rectagle covering the display resolution */
+/* Vertices for rectangle covering the display resolution */
 GLfloat rect_vertices[6][3] =
 {   // x     y     z
  
@@ -498,61 +498,12 @@ GLfloat rect_vertices[6][3] =
     { 1.0, -1.0,  0.0}, // 2
 };
 
-GLfloat rect_vertices0[6][3] =
-{   // x     y     z
- 
-   /* 1st Traingle */
-    {-1.0,  1.0,  0.0}, // 0 
-    {-1.0,  0.0,  0.0}, // 1
-    { 0.0,  1.0,  0.0}, // 2
-  
-   /* 2nd Traingle */
-    { 0.0,  1.0,  0.0}, // 1
-    {-1.0, -0.0,  0.0}, // 0
-    { 0.0, -0.0,  0.0}, // 2
-};
-
-GLfloat rect_vertices1[6][3] =
-{   // x     y     z
- 
-   /* 1st Traingle */
-    {-0.0,  1.0,  0.0}, // 0 
-    {-0.0, -0.0,  0.0}, // 1
-    { 1.0,  1.0,  0.0}, // 2
-  
-   /* 2nd Traingle */
-    { 1.0,  1.0,  0.0}, // 1
-    {-0.0, -0.0,  0.0}, // 0
-    { 1.0, -0.0,  0.0}, // 2
-};
-
-GLfloat rect_vertices2[6][3] =
-{   // x     y     z
- 
-   /* 1st Traingle */
-    {-1.0,  0.0,  0.0}, // 0 
-    {-1.0, -1.0,  0.0}, // 1
-    { 0.0,  0.0,  0.0}, // 2
-  
-   /* 2nd Traingle */
-    { 0.0,  0.0,  0.0}, // 1
-    {-1.0, -1.0,  0.0}, // 0
-    { 0.0, -1.0,  0.0}, // 2
-};
-
-GLfloat rect_vertices3[6][3] =
-{   // x     y     z
- 
-   /* 1st Traingle */
-    {-0.0,  0.0,  0.0}, // 0 
-    {-0.0, -1.0,  0.0}, // 1
-    { 1.0,  0.0,  0.0}, // 2
-  
-   /* 2nd Traingle */
-    { 1.0,  0.0,  0.0}, // 1
-    {-0.0, -1.0,  0.0}, // 0
-    { 1.0, -1.0,  0.0}, // 2
-};
+/* Populate the vertex co-ordinates in init() function based on the
+   bcSink display parameters */
+GLfloat rect_vertices0[6][3];
+GLfloat rect_vertices1[6][3];
+GLfloat rect_vertices2[6][3];
+GLfloat rect_vertices3[6][3];
 
 /* Texture Co-ordinates */
 GLfloat rect_texcoord[6][2] =
@@ -995,6 +946,8 @@ void  render_thread(int fd, int devid)
 
 		/* Reset texture object */
 		tex_obj[devid] = -1;
+		/* Reset Device Co-ordinates */
+		device_coordinates[devid][0] = device_coordinates[devid][1] = device_coordinates[devid][2] = device_coordinates[devid][3] = -1;
 		switch(devid)
 		{
 			case 0: 
