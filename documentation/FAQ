@@ -1,0 +1,144 @@
+1) Where can I get the source code and what are hardware and software platforms used in the development and testing?
+
+- The complete source code is available and maintained at the following git repository.
+	https://github.com/aditya-nellutla/TI-Graphics-Accelerated-Video-streaming-
+
+- The details of hardware and software platforms used for testing are shown below.
+
+Hardware -  TI AM335x.
+========
+
+Software Components -
+===================
+
+- Linux Graphics SDK . 4.06.00.03
+	http://software-dl.ti.com/dsps/dsps_public_sw/sdo_sb/targetcontent/gfxsdk/4_06_00_03/index_FDS.html
+
+- Open Source Gstreamer  0.10.30
+
+- Kernel version : 3.2  (TI SDK linux : linux-3.2-psp04.06.00.07.sdk).
+
+- Static arago toolchain for building gstreamer components.
+
+- Arago file system from AM SDK.
+	http://software-dl.ti.com/dsps/dsps_public_sw/am_bu/sdk/AM335xSDK/latest/index_FDS.html
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+2) How to port/upgrade the components and what is expected from the users?
+
+- Porting / upgrading the solution to different environments has dependencies on the following components.
+
+	1) GStreamer - to build BCSink plug-in and run video pipelines.
+
+	2) Graphics SDK - to build Renderer component.
+	
+	3) Qt - to build/develop UI components.
+
+	4) CMEM - contiguous memory allocation.
+
+- TI will support upgrades to the Linux Graphics SDK. The latest Graphics SDK  downloads, build/install instruction are available from the following link.
+	http://processors.wiki.ti.com/index.php/Graphics_SDK_Quick_installation_and_user_guide
+
+- Users are expected to perform porting of the following components based on the requirements .
+
+	1) Upgrading or migrating to different Gstreamer versions.
+
+	2) Creating custom UI using Qt, QGL Widget integration etc.
+
+	3) Updates and builds of cmem modules.
+
+- It is expected that users must perform complete system level testing and validation of various components if they intend to use this solution in their products.
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+3) Where can I get latest TI Graphics SDK ?
+
+- Refer README for details.
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+4) How many channels of video can be streamed in parallel with the current solution ?
+
+- Presently it supports upto max of 4 video streams provided enough bandwidth is available.
+  Refer README for required changes in thr Graphics SDK.
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+5) What is CMEM component and what arguments needs to be passed while insmoding the module ?
+
+- CMEM module is used for contiguous memory allocation in the BCSink.
+
+- User should set appropriate agruments based on the memory requirements on any given platform.
+  It involves setting valid start and end physical addresses, partitioning the memory into as many pools as the no. of input video channels.
+
+  For example, For 4-video channels the memory should be organized into 4 pools as shown in the example below -
+
+  Ex:- insmod cmemk.ko "phys_start=0x8A000001 phys_end=0x94000001 pools=1x41943040,1x41943040,1x41943040,1x41943040 allowOverlap=1"
+
+  Here pool size is calulated using following formula -
+
+	-  [ INPUT_RESOLUTION (width x height) ] * [ MAX_FRAMES (~6) ] * [ BPP (rounded to CEIL) ] 
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+6) How should I pass custom output resolution and position parameters for the video output ?
+
+- The values needs to be passed as argumenst to bcsink in Normalized Device cordinates.
+  Refer README for details.
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+7) I am not able to toggle btw full screen and regular modes, what could have gone wrong?
+
+- Make sure that you have vsGUI running in the background before starting the bcRenderer and gst pipelines.
+  Also ensure that any default GUIs (like Matrix GUI in case of AMSDK/EZSDK) are stopped before starting the application.
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+8) Can I use this solution on any other platfroms apart from AM335x ?
+
+- Yes, this is a platform independent solution and can be used on any TI platfroms.
+  User must ensure that appropriate changes are made to cmem arguments while moving to other platfroms.
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+9) Launching a new video stream slows down the system, what could be the the problem?
+
+- It is highly possible that you are running out of CPU bandwidth due to previous video decodes. Check CPU usage and make sure that 
+  your gstreamer pipelines are not hogging CPU.
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+10) Can I input video of any arbitrary resolution to the gstreamer pipeline?
+
+- Yes, as long as you have enough CPU bandwidth.
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+11) What all YUV formats are supported for the YUV-RGB color conversion?
+
+- YUV420 formats - I420, YV12, NV12
+- YUV422 Interleaved - UYVY / YUYV
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+12) Is it possible to get any arbitrary effects on the display output such as picture in picture, video stitching etc. ?
+
+- Yes, user needs to pass appropriate co-ordinate resolution and dimensions to bcsink while launching the pipeline.
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+13) What happens if the positons of multiple videos overlap on the output?
+
+- The video stream corresponding to the highest device-id is rendered on the top.
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+14) Can I use this solution with other media frameworks apart from Gstreamer?
+
+- Yes, bcRenderer is fairly independent of frontend media framework but the user should implement an interface like bcSink to communicate
+  between media framework and bcRenderer.
+
+-------------------------------------------------------------------------------------------------------------------------------
+
