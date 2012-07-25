@@ -81,6 +81,12 @@ Software Components -
 	-  [ INPUT_RESOLUTION (width x height) ] * [ MAX_FRAMES (~6) ] * [ BPP (rounded to CEIL) ] 
 
 -------------------------------------------------------------------------------------------------------------------------------
+5-a) I see following error while I start video decode pipeline. How to fix it.
+     "Error: failed to get requested buffers"
+
+-  Please make sure that you have enough memory in the CMEM pools. Refer (5) for explaination.
+
+-------------------------------------------------------------------------------------------------------------------------------
 
 6) How should I pass custom output resolution and position parameters for the video output ?
 
@@ -135,7 +141,16 @@ Software Components -
 
 -------------------------------------------------------------------------------------------------------------------------------
 
-14) Can I use this solution with other media frameworks apart from Gstreamer?
+14) I see noisy output on the display while trying to stream video of different resolution/format in an existing channel, what went wrong?
+
+- The noisy output is expected if you try to stream video of different resolution/format to the same device where you played a video 
+  of someother resolution/format. As mentioned in the README, there is a restriction that for a given deviceid you are supposed to stream 
+  video of similar resolution and format. If you want to stream video having different properties to the previous device you have to restart bcRenderer. 
+  Note that this restriction comes from the driver.
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+15) Can I use this solution with other media frameworks apart from Gstreamer?
 
 - Yes, bcRenderer is fairly independent of frontend media framework but the user should implement an interface like bcSink to communicate
   between media framework and bcRenderer.
