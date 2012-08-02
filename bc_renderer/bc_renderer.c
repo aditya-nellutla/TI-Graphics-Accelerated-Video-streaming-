@@ -72,8 +72,6 @@
 static int initApplication();
 static int initView();
 static void releaseView();
-static int setScene();
-
 
 // Index to bind the attributes to vertex shaders
 #define VERTEX_ARRAY	2
@@ -143,10 +141,9 @@ char* vshader_src = "\
         attribute vec4 vPosition; \
 	attribute mediump vec2  inTexCoord; \
 	varying mediump vec2    TexCoord; \
-	uniform mediump mat4	myPMVMatrix;\
 	void main(void)\
 	{\
-		gl_Position =  myPMVMatrix * vPosition;\
+		gl_Position =  vPosition;\
 		TexCoord = inTexCoord; \
 	}";
 
@@ -447,41 +444,6 @@ void releaseView()
 	glDeleteShader(ver_shader);
         glDeleteShader(frag_shader);
 }
-
-/*!****************************************************************************
- @Function		setScene
- @Return		1 if no error occured
- @Description		The shell will call this function every frame.
-			Sets Model View Projection  matrices for the shader.
-******************************************************************************/
-int setScene()
-{
-	int m_fAngle = 0;
-
-	 /*
-                Bind the projection model view matrix (PMVMatrix) to the
-                corresponding uniform variable in the shader.
-                This matrix is used in the vertex shader to transform the vertices.
-        */
-
-	 float aPMVMatrix[] =
-        {
-                cos(m_fAngle),  0,      sin(m_fAngle),  0,
-                0,              1,      0,              0,
-                -sin(m_fAngle), 0,      cos(m_fAngle),  0,
-                0,              0,      0,              1
-        };
-
-	// First gets the location of that variable in the shader using its name
-	int i32Location = glGetUniformLocation(program, "myPMVMatrix");
-	
-	// Then passes the matrix to that variable
-	glUniformMatrix4fv(i32Location, 1, GL_FALSE, aPMVMatrix);
-	return 1;
-}
-
-/******************************************************************************
-******************************************************************************/
 
 /* Vertices for rectangle covering the display resolution */
 GLfloat rect_vertices[6][3] =
@@ -891,7 +853,6 @@ void render(int deviceid, int buf_index)
 				break;
 	}
 	
-        setScene();
 	/* Unbind the texture */
         glBindTexture(GL_TEXTURE_STREAM_IMG, 0);
 }
