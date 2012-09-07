@@ -80,6 +80,7 @@ static void releaseView();
 
 /* Macro controls the delay factor for unreferencing buffers*/
 #define MAX_QUEUE 3
+#define BPP 2
 
 /* Named Pipes used in the IPC */
 char BCSINK_FIFO_NAME[]="/opt/gstbc/gstbcsink_fifo0";
@@ -1159,7 +1160,7 @@ int init(int dev_fd, int devid)
 
 	for(count =0; count < PROP_DEF_QUEUE_SIZE; count++)
 	{
-		buf_pa.pa    = initparams.phyaddr + initparams.params.width*initparams.params.height*2*count;
+		buf_pa.pa    = initparams.phyaddr + initparams.params.width*initparams.params.height*BPP*count;
 		buf_pa.index =  count;
 
 		if (ioctl(dev_fd, BCIOSET_BUFFERPHYADDR, &buf_pa) != 0)
@@ -1175,6 +1176,7 @@ int init(int dev_fd, int devid)
         glBindTexture(GL_TEXTURE_STREAM_IMG, tex_obj[devid]);
         glTexParameterf(GL_TEXTURE_STREAM_IMG, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameterf(GL_TEXTURE_STREAM_IMG, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glBindTexture(GL_TEXTURE_STREAM_IMG, 0);
 
 	return 0;
 exit:

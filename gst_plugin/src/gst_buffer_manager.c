@@ -76,6 +76,9 @@ static CMEM_AllocParams cmem_params = { CMEM_POOL, CMEM_CACHED, 4096 };
 static GstBufferClass *buffer_parent_class = NULL;
 extern int fd_bcinit_fifo;
 
+/*Buffer pointer for cmem allocation*/
+void *vidStreamBufVa;
+
 static void
 gst_bcbuffer_finalize (GstBufferClassBuffer * buffer)
 {
@@ -264,7 +267,6 @@ gst_buffer_manager_new (GstElement * elem, gst_initpacket pack_info, int count, 
   GstBufferClassBufferPool *pool = NULL;
   GstVideoFormat format;
   gint width, height;
-  void          *vidStreamBufVa;
   unsigned long vidStreamBufPa;
   int n, i;
   if (gst_video_format_parse_caps(caps, &format, &width, &height)) {
@@ -377,6 +379,11 @@ gst_buffer_manager_dispose (GstBufferClassBufferPool * pool)
     gst_buffer_unref (GST_BUFFER (buf));
   }
 
+   if(vidStreamBufVa)
+   {
+	  /*Freeing CMEM allocated memory */
+	  CMEM_free(vidStreamBufVa,&cmem_params);
+   }
   gst_mini_object_unref (GST_MINI_OBJECT (pool));
 
   GST_DEBUG ("end");

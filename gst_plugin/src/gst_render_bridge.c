@@ -394,6 +394,10 @@ gst_render_bridge_finalize (GstBufferClassSink * bcsink)
     bcsink->pool = NULL;
   }
   G_OBJECT_CLASS (parent_class)->finalize ((GObject *) (bcsink));
+  
+  if(fd_bcsink_fifo) close(fd_bcsink_fifo);
+  if(fd_bcinit_fifo) close(fd_bcinit_fifo);
+  if(fd_bcack_fifo) close(fd_bcack_fifo);
 }
 
 static void
