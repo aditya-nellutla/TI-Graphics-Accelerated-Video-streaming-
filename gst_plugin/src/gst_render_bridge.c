@@ -76,9 +76,9 @@ char BCACK_FIFO_NAME[]= "/opt/gstbc/gstbcack_fifo0";
 char INSTANCEID_FIFO_NAME[]="/opt/gstbc/gstinstanceid_fifo";
 
 pthread_mutex_t ctrlmutex = PTHREAD_MUTEX_INITIALIZER;
-int fd_bcsink_fifo;
-int fd_bcinit_fifo;
-int fd_bcack_fifo;
+int fd_bcsink_fifo = -1;
+int fd_bcinit_fifo = -1;
+int fd_bcack_fifo = -1;
 extern unsigned long TextureBufsPa[MAX_FCOUNT];
 pthread_mutex_t initmutex = PTHREAD_MUTEX_INITIALIZER;
 /* Passes the configuration display parameters from cmd line */
@@ -394,10 +394,24 @@ gst_render_bridge_finalize (GstBufferClassSink * bcsink)
     bcsink->pool = NULL;
   }
   G_OBJECT_CLASS (parent_class)->finalize ((GObject *) (bcsink));
-  
-  if(fd_bcsink_fifo) close(fd_bcsink_fifo);
-  if(fd_bcinit_fifo) close(fd_bcinit_fifo);
-  if(fd_bcack_fifo) close(fd_bcack_fifo);
+
+  if(fd_bcsink_fifo >= 0)
+  {
+	close(fd_bcsink_fifo);
+	fd_bcsink_fifo = -1;
+  }
+
+ if(fd_bcinit_fifo >= 0)
+  {
+	close(fd_bcinit_fifo);
+	fd_bcinit_fifo = -1;
+  }
+
+  if(fd_bcack_fifo >= 0)
+  {
+	close(fd_bcack_fifo);
+	fd_bcack_fifo = -1;
+  }
 }
 
 static void
