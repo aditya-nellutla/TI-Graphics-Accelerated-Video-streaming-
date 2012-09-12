@@ -78,7 +78,6 @@ char INSTANCEID_FIFO_NAME[]="/opt/gstbc/gstinstanceid_fifo";
 pthread_mutex_t ctrlmutex = PTHREAD_MUTEX_INITIALIZER;
 int fd_bcsink_fifo = -1;
 int fd_bcinit_fifo = -1;
-int fd_bcack_fifo = -1;
 extern unsigned long TextureBufsPa[MAX_FCOUNT];
 pthread_mutex_t initmutex = PTHREAD_MUTEX_INITIALIZER;
 /* Passes the configuration display parameters from cmd line */
@@ -360,19 +359,11 @@ gst_render_bridge_init (GstBufferClassSink * bcsink, GstBufferClassSinkClass * k
 	exit(0);
   }
 
-  /* Set it as non blocking as we expect some delay in buffer unreferencing
-     to account for SGX deferred rendering architecture */
-  fd_bcack_fifo = open( BCACK_FIFO_NAME, O_RDONLY | O_NONBLOCK );
-  if(fd_bcack_fifo < 0)
-  {
-	printf (" Failed to open bciack_fifo FIFO - fd: %d\n", fd_bcack_fifo);
-	exit(0);
-  }
-	/*Initialize packet dat with default values*/
-	pack_info.xpos =0;
-	pack_info.ypos =0;
-	pack_info.width =0;
-	pack_info.height =0;
+  /*Initialize packet dat with default values*/
+  pack_info.xpos =0;
+  pack_info.ypos =0;
+  pack_info.width =0;
+  pack_info.height =0;
 
 }
 
@@ -406,12 +397,6 @@ gst_render_bridge_finalize (GstBufferClassSink * bcsink)
 	close(fd_bcinit_fifo);
 	fd_bcinit_fifo = -1;
   }
-
-  if(fd_bcack_fifo >= 0)
-  {
-	close(fd_bcack_fifo);
-	fd_bcack_fifo = -1;
-  }
 }
 
 static void
@@ -422,8 +407,6 @@ gst_render_bridge_set_property (GObject * object,
   int temp;
   switch (prop_id) {
     case PROP_DEVICE:
-     // g_free (bcsink->videodev);
-     // bcsink->videodev = g_value_dup_string (value);
       break;
 
     case PROP_QUEUE_SIZE:
@@ -582,7 +565,6 @@ gst_render_bridge_buffer_alloc (GstBaseSink * bsink, guint64 offset, guint size,
     if (!bcsink->pool)
       return GST_FLOW_ERROR;
   }
-
   *buf = GST_BUFFER (gst_buffer_manager_get (bcsink->pool));
 
   if (G_LIKELY (buf)) {
@@ -638,12 +620,10 @@ gst_render_bridge_show_frame (GstBaseSink * bsink, GstBuffer * buf)
   /* cause buffer to be flushed before rendering */
   gst_bcbuffer_flush (bcbuf);
 
-  //g_signal_emit (bcsink, signals[SIG_RENDER], 0, bcbuf->index);
-
   gst_buffer_ref(bcbuf);
+
 /*****************************************************************
 ******************************************************************/
-
 /* Populate the packet data to be communicated accross pipes */	
   datapacket.buf = bcbuf;
   datapacket.index = bcbuf->index;
@@ -656,12 +636,18 @@ gst_render_bridge_show_frame (GstBaseSink * bsink, GstBuffer * buf)
 	printf("Error in writing to queue\n");
   }
 
-  n = read(fd_bcack_fifo, &bcbuf_rec, sizeof(GstBufferClassBuffer *));
-
-  /* To account for the delay in unreferencing the buffer from the renderer read is non blocking */
-  if(n == sizeof(GstBufferClassBuffer *))
+/* Delay unreferencing the buffers to account for the deferred rendering architecture of SGX*/
+  if( bcbuf_queue[queue_counter]==NULL )
   {
-	gst_buffer_unref(bcbuf_rec);
+	/* Start queing buffers until full */
+	bcbuf_queue[queue_counter] = bcbuf;
+	queue_counter = (queue_counter + 1)%MAX_QUEUE;
+  }
+  else
+  {
+	gst_buffer_unref(bcbuf_queue[queue_counter]);
+	bcbuf_queue[queue_counter] = bcbuf;
+	queue_counter = (queue_counter + 1)%MAX_QUEUE;
   }
 
 /*****************************************************************

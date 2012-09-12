@@ -92,7 +92,6 @@ char CTRL_FIFO_NAME[]="/opt/gstbc/gstcrtl_fifo";
 /* File descriptors corresponding to opened pipes */
 int fd_bcsink_fifo_rec[MAX_STREAMS];
 int fd_bcinit_fifo_rec[MAX_STREAMS];
-int fd_bcack_fifo_rec[MAX_STREAMS];
 int fd_ctrl_fifo;
 
 int dev_fd0 = -1;
@@ -628,34 +627,13 @@ void drawRect3(int isfullscreen)
 void * dev0_ctrl_thread()
 {
 	int n;
-	int queue_counter=0;
-	GstBufferClassBuffer *bcbuf_queue[MAX_QUEUE]= {NULL, NULL, NULL};
-
 	while(1)
 	{
 		n=0;
 		/* Reads the packets from the bcsink */
 		n = read(fd_bcsink_fifo_rec[dev0], &bcbuf[dev0], sizeof(bc_gstpacket));
 
-		if(n > 0)
-		{
-			/* Delay unreferencing the buffers to account for the deferred rendering architecture of SGX*/
-			if( bcbuf_queue[queue_counter]==NULL )
-			{
-				/* Start queing buffers until full */
-				bcbuf_queue[queue_counter] = bcbuf[dev0].buf;
-				queue_counter = (queue_counter + 1)%MAX_QUEUE;
-			}
-			else
-			{
-				/* Send ACK to bcsink about completion of render*/
-				n = write(fd_bcack_fifo_rec[dev0], &bcbuf_queue[queue_counter], sizeof(GstBufferClassBuffer*));
-				bcbuf_queue[queue_counter] = bcbuf[dev0].buf;
-				queue_counter = (queue_counter + 1)%MAX_QUEUE;
-			}
-
-		}
-		else
+		if(n == 0)
 		{
 			/* This indicates the execution has completed, set thread status to inactive*/
 			dev_thread_status[dev0] = 0;
@@ -672,33 +650,13 @@ void * dev0_ctrl_thread()
 void * dev1_ctrl_thread()
 {
 	int n;
-	int queue_counter=0;
-	GstBufferClassBuffer *bcbuf_queue[MAX_QUEUE]= {NULL, NULL, NULL};
 	while(1)
 	{
 		n=0;
 		/* Reads the packets from the bcsink */
 		n = read(fd_bcsink_fifo_rec[dev1], &bcbuf[dev1], sizeof(bc_gstpacket));
 
-		if(n > 0)
-		{
-			/* Delay unreferencing the buffers to account for the deferred rendering architecture of SGX*/
-			if( bcbuf_queue[queue_counter]==NULL )
-			{
-				/* Start queing buffers until full */
-				bcbuf_queue[queue_counter] = bcbuf[dev1].buf;
-				queue_counter = (queue_counter + 1)%MAX_QUEUE;
-			}
-			else
-			{
-				/* Send ACK to bcsink about completion of render*/
-				n = write(fd_bcack_fifo_rec[dev1], &bcbuf_queue[queue_counter], sizeof(GstBufferClassBuffer*));
-				bcbuf_queue[queue_counter] = bcbuf[dev1].buf;
-				queue_counter = (queue_counter + 1)%MAX_QUEUE;
-			}
-
-		}
-		else
+		if(n == 0)
 		{
 			/* This indicates the execution has completed, set thread status to inactive*/
 			dev_thread_status[dev1] = 0;
@@ -715,33 +673,13 @@ void * dev1_ctrl_thread()
 void * dev2_ctrl_thread()
 {
 	int n;
-	int queue_counter=0;
-	GstBufferClassBuffer *bcbuf_queue[MAX_QUEUE]= {NULL, NULL, NULL};
 	while(1)
 	{
 		n=0;
 		/* Reads the packets from the bcsink */
 		n = read(fd_bcsink_fifo_rec[dev2], &bcbuf[dev2], sizeof(bc_gstpacket));
 
-		if(n > 0)
-		{
-			/* Delay unreferencing the buffers to account for the deferred rendering architecture of SGX*/
-			if( bcbuf_queue[queue_counter]==NULL )
-			{
-				/* Start queing buffers until full */
-				bcbuf_queue[queue_counter] = bcbuf[dev2].buf;
-				queue_counter = (queue_counter + 1)%MAX_QUEUE;
-			}
-			else
-			{
-				/* Send ACK to bcsink about completion of render*/
-				n = write(fd_bcack_fifo_rec[dev2], &bcbuf_queue[queue_counter], sizeof(GstBufferClassBuffer*));
-				bcbuf_queue[queue_counter] = bcbuf[dev2].buf;
-				queue_counter = (queue_counter + 1)%MAX_QUEUE;
-			}
-
-		}
-		else
+		if(n == 0)
 		{
 			/* This indicates the execution has completed, set thread status to inactive*/
 			dev_thread_status[dev2] = 0;
@@ -758,33 +696,13 @@ void * dev2_ctrl_thread()
 void * dev3_ctrl_thread()
 {
 	int n;
-	int queue_counter=0;
-	GstBufferClassBuffer *bcbuf_queue[MAX_QUEUE]= {NULL, NULL, NULL};
 	while(1)
 	{
 		n=0;
 		/* Reads the packets from the bcsink */
 		n = read(fd_bcsink_fifo_rec[dev3], &bcbuf[dev3], sizeof(bc_gstpacket));
 
-		if(n > 0)
-		{
-			/* Delay unreferencing the buffers to account for the deferred rendering architecture of SGX*/
-			if( bcbuf_queue[queue_counter]==NULL )
-			{
-				/* Start queing buffers until full */
-				bcbuf_queue[queue_counter] = bcbuf[dev3].buf;
-				queue_counter = (queue_counter + 1)%MAX_QUEUE;
-			}
-			else
-			{
-				/* Send ACK to bcsink about completion of render*/
-				n = write(fd_bcack_fifo_rec[dev3], &bcbuf_queue[queue_counter], sizeof(GstBufferClassBuffer*));
-				bcbuf_queue[queue_counter] = bcbuf[dev3].buf;
-				queue_counter = (queue_counter + 1)%MAX_QUEUE;
-			}
-
-		}
-		else
+		if(n == 0)
 		{
 			/* This indicates the execution has completed, set thread status to inactive*/
 			dev_thread_status[dev3] = 0;
@@ -895,7 +813,6 @@ void  render_thread(int fd, int devid)
 
 		/* close the named pipes which are not in use*/
 		close(fd_bcsink_fifo_rec[devid]);
-		close(fd_bcack_fifo_rec[devid]);
 
 		/* Close the device to be used by other process */
 		close(fd);
@@ -947,37 +864,30 @@ int init(int dev_fd, int devid)
 	/*************************************************************************************
 	* Open Named pipes for communication with the gst-bcsink plugin
 	**************************************************************************************/
-		BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1] = devid + '0';
-		BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1] = devid + '0';
-		BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]   = devid + '0';
+	BCSINK_FIFO_NAME[strlen(BCSINK_FIFO_NAME)-1] = devid + '0';
+	BCINIT_FIFO_NAME[strlen(BCINIT_FIFO_NAME)-1] = devid + '0';
+	BCACK_FIFO_NAME[strlen(BCACK_FIFO_NAME)-1]   = devid + '0';
 
-		fd_bcinit_fifo_rec[devid] = open( BCINIT_FIFO_NAME, O_RDONLY);
-		if(fd_bcinit_fifo_rec[devid] < 0)
-		{
-			printf (" Failed to open bcinit_fifo FIFO - fd: %d\n", fd_bcinit_fifo_rec[devid]);
-			goto exit;
-		}
-		
-		fd_bcsink_fifo_rec[devid] = open( BCSINK_FIFO_NAME, O_RDONLY);
-		if(fd_bcsink_fifo_rec[devid] < 0)
-		{
-			printf (" Failed to open bcsink_fifo FIFO - fd: %d\n", fd_bcsink_fifo_rec[devid]);
-			goto exit;
-		}
+	fd_bcinit_fifo_rec[devid] = open( BCINIT_FIFO_NAME, O_RDONLY);
+	if(fd_bcinit_fifo_rec[devid] < 0)
+	{
+		printf (" Failed to open bcinit_fifo FIFO - fd: %d\n", fd_bcinit_fifo_rec[devid]);
+		goto exit;
+	}
 
-		/* Make read non-blocking */
-		fd_bcack_fifo_rec[devid] = open( BCACK_FIFO_NAME, O_RDWR | O_NONBLOCK);
-		if(fd_bcack_fifo_rec[devid] < 0)
-		{
-			printf (" Failed to open bcack_fifo FIFO - fd: %d\n", fd_bcack_fifo_rec[devid]);
-			goto exit;
-		}
+	fd_bcsink_fifo_rec[devid] = open( BCSINK_FIFO_NAME, O_RDONLY);
+	if(fd_bcsink_fifo_rec[devid] < 0)
+	{
+		printf (" Failed to open bcsink_fifo FIFO - fd: %d\n", fd_bcsink_fifo_rec[devid]);
+		goto exit;
+	}
+
 	/* Read initialization parameters sent from bcsink */
         n = read(fd_bcinit_fifo_rec[devid], &initparams, sizeof(gst_initpacket));
 	if(n != -1 )
 	{
-	        if (ioctl (dev_fd, BCIOREQ_BUFFERS, &initparams.params) != 0) 
-		{ 
+	        if (ioctl (dev_fd, BCIOREQ_BUFFERS, &initparams.params) != 0)
+		{
     			printf("Error: failed to get requested buffers\n");
 			close(fd_bcinit_fifo_rec);
 			goto exit;
@@ -1181,7 +1091,6 @@ int init(int dev_fd, int devid)
 	return 0;
 exit:
 	close(fd_bcsink_fifo_rec[devid]);
-	close(fd_bcack_fifo_rec[devid]);
 	close(dev_fd);
 	releaseView();
 	return 0;
