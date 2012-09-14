@@ -42,7 +42,7 @@ Note:  	i) Graphics SDK build/installation instructions can be obtsined from her
 
 2) Edit <gst-plugin_dir>/autogen.sh and add host/prefix values as appropriate
 	host=toolchain-prefix
-        prefix=<GSDK_ROOT>/usr
+        prefix=<TGTFS_PATH>/usr
 
 3) export PKG_CONFIG_PATH=<Gstreamer_src_dir>/pkgconfig/
 
