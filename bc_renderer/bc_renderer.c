@@ -381,19 +381,13 @@ int initView()
 		return 0;
 	}
 
-	// Create the shader program
+    // Create the shader program
     program = glCreateProgram();
 
-	// Attach the fragment and vertex shaders to it
+    // Attach the fragment and vertex shaders to it
     glAttachShader(program, m_uiFragShader);
     glAttachShader(program, m_uiVertexShader);
 	
-	// Bind the custom vertex attribute "myVertex" to location VERTEX_ARRAY
-    glBindAttribLocation(program, VERTEX_ARRAY, "myVertex");
-	// Bind the custom vertex attribute "myUV" to location TEXCOORD_ARRAY
-    glBindAttribLocation(program, TEXCOORD_ARRAY, "myUV");
-
-    /* Buffer class specific */
     // Bind vPosition to attribute 0
     glBindAttribLocation(program, 0, "vPosition");
     glBindAttribLocation(program, 1, "inTexCoord");
@@ -401,7 +395,7 @@ int initView()
     // Link the program
     glLinkProgram(program);
 
-	// Check if linking succeeded in the same way we checked for compilation success
+    // Check if linking succeeded in the same way we checked for compilation success
     GLint bLinked;
     glGetProgramiv(program, GL_LINK_STATUS, &bLinked);
 
@@ -500,27 +494,27 @@ GLfloat rect_texcoord1[6][2] =
 };
 
 /*!****************************************************************************
- @Function		drawRect0
+ @Function		drawRect
  @Return		void
- @Description 		Draws rectangular quads in 1st Quadrant
+ @Description 		Draws rectangular quads
 ******************************************************************************/
-void drawRect0(int isfullscreen)
+inline void drawRect(int isfullscreen, int rect_coord[])
 {
     glUseProgram(program);
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
 
    if(isfullscreen)
-   {	 
-	   /* Draw Quad-0 */
+   {
+	   /* Draw in full screen */
 	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_vertices);
 	    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, rect_texcoord);
 	    glDrawArrays(GL_TRIANGLES, 0, 6);
    }
    else
    {
-	   /* Draw Quad-0 */
-	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_vertices0);
+	   /* Draw Quad */
+	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_coord);
 	    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, rect_texcoord);
 	    glDrawArrays(GL_TRIANGLES, 0, 6);
    }
@@ -529,187 +523,25 @@ void drawRect0(int isfullscreen)
 
 }
 
-/*!****************************************************************************
- @Function		drawRect1
- @Return		void
- @Description 		Draws rectangular quads in 2nd Quadrant
-******************************************************************************/
-void drawRect1(int isfullscreen)
-{
-    glUseProgram(program);
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-
-   if(isfullscreen)
-   {	 
-	   /* Draw Quad-1 */
-	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_vertices);
-	    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, rect_texcoord);
-	    glDrawArrays(GL_TRIANGLES, 0, 6);
-   }
-   else
-   {
-	   /* Draw Quad-1 */
-	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_vertices1);
-	    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, rect_texcoord);
-	    glDrawArrays(GL_TRIANGLES, 0, 6);
-   }
-    glDisableVertexAttribArray (0);
-    glDisableVertexAttribArray (1);
-
-}
-
-/*!****************************************************************************
- @Function		drawRect2
- @Return		void
- @Description 		Draws rectangular quads in 3rd Quadrant
-******************************************************************************/
-void drawRect2(int isfullscreen)
-{
-    glUseProgram(program);
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-
-   if(isfullscreen)
-   {	 
-	   /* Draw Quad-2 */
-	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_vertices);
-	    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, rect_texcoord);
-	    glDrawArrays(GL_TRIANGLES, 0, 6);
-   }
-   else
-   {
-	   /* Draw Quad-2 */
-	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_vertices2);
-	    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, rect_texcoord);
-	    glDrawArrays(GL_TRIANGLES, 0, 6);
-   }
-    glDisableVertexAttribArray (0);
-    glDisableVertexAttribArray (1);
-
-}
-
-/*!****************************************************************************
- @Function		drawRect3
- @Return		void
- @Description 		Draws rectangular quads in 4th Quadrant
-******************************************************************************/
-void drawRect3(int isfullscreen)
-{
-    glUseProgram(program);
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-
-   if(isfullscreen)
-   {	 
-	   /* Draw Quad-3 */
-	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_vertices);
-	    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, rect_texcoord);
-	    glDrawArrays(GL_TRIANGLES, 0, 6);
-   }
-   else
-   {
-	   /* Draw Quad-3 */
-	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, rect_vertices3);
-	    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, rect_texcoord);
-	    glDrawArrays(GL_TRIANGLES, 0, 6);
-   }
-    glDisableVertexAttribArray (0);
-    glDisableVertexAttribArray (1);
-
-}
-
-/*!****************************************************************************
- @Function		dev0_ctrl_thread
- @Return		void
- @Description 		Device-0 control thread which receives data from bcsink
-******************************************************************************/
-void * dev0_ctrl_thread()
+void * dev_ctrl_thread(void *dev_arg)
 {
 	int n;
+	int dev = (int)dev_arg;
 	while(1)
 	{
 		n=0;
 		/* Reads the packets from the bcsink */
-		n = read(fd_bcsink_fifo_rec[dev0], &bcbuf[dev0], sizeof(bc_gstpacket));
+		n = read(fd_bcsink_fifo_rec[dev], &bcbuf[dev], sizeof(bc_gstpacket));
 
 		if(n == 0)
 		{
 			/* This indicates the execution has completed, set thread status to inactive*/
-			dev_thread_status[dev0] = 0;
+			dev_thread_status[dev] = 0;
 			pthread_exit(NULL);
 		}
 	}
 }
 
-/*!****************************************************************************
- @Function		dev1_ctrl_thread
- @Return		void
- @Description 		Device-1 control thread which receives data from bcsink
-******************************************************************************/
-void * dev1_ctrl_thread()
-{
-	int n;
-	while(1)
-	{
-		n=0;
-		/* Reads the packets from the bcsink */
-		n = read(fd_bcsink_fifo_rec[dev1], &bcbuf[dev1], sizeof(bc_gstpacket));
-
-		if(n == 0)
-		{
-			/* This indicates the execution has completed, set thread status to inactive*/
-			dev_thread_status[dev1] = 0;
-			pthread_exit(NULL);
-		}
-	}
-}
-
-/*!****************************************************************************
- @Function		dev2_ctrl_thread
- @Return		void
- @Description 		Device-2 control thread which receives data from bcsink
-******************************************************************************/
-void * dev2_ctrl_thread()
-{
-	int n;
-	while(1)
-	{
-		n=0;
-		/* Reads the packets from the bcsink */
-		n = read(fd_bcsink_fifo_rec[dev2], &bcbuf[dev2], sizeof(bc_gstpacket));
-
-		if(n == 0)
-		{
-			/* This indicates the execution has completed, set thread status to inactive*/
-			dev_thread_status[dev2] = 0;
-			pthread_exit(NULL);
-		}
-	}
-}
-
-/*!****************************************************************************
- @Function		dev3_ctrl_thread
- @Return		void
- @Description 		Device-3 control thread which receives data from bcsink
-******************************************************************************/
-void * dev3_ctrl_thread()
-{
-	int n;
-	while(1)
-	{
-		n=0;
-		/* Reads the packets from the bcsink */
-		n = read(fd_bcsink_fifo_rec[dev3], &bcbuf[dev3], sizeof(bc_gstpacket));
-
-		if(n == 0)
-		{
-			/* This indicates the execution has completed, set thread status to inactive*/
-			dev_thread_status[dev3] = 0;
-			pthread_exit(NULL);
-		}
-	}
-}
 
 /*!****************************************************************************
  @Function		render
@@ -753,19 +585,19 @@ void render(int deviceid, int buf_index)
 	{
 		case 0 :
 				glTexBindStreamIMG (deviceid, buf_index);
-				drawRect0(fscr);
+				drawRect(fscr, rect_vertices0);
 				break;
 		case 1 :
 				glTexBindStreamIMG (deviceid, buf_index);
-				drawRect1(fscr);
+				drawRect(fscr, rect_vertices1);
 				break;
 		case 2 :
 				glTexBindStreamIMG (deviceid, buf_index);
-				drawRect2(fscr);
+				drawRect(fscr, rect_vertices2);
 				break;
 		case 3 :
 				glTexBindStreamIMG (deviceid, buf_index);
-				drawRect3(fscr);
+				drawRect(fscr, rect_vertices3);
 				break;
 		default:	
 				printf("Enterer default case %d \n",deviceid); // It should have never come here
@@ -1177,8 +1009,107 @@ void * pipe_ctrl_thread()
 		fd_instance = fopen( INSTANCEID_FIFO_NAME, "r");
 		fscanf(fd_instance,"%d", &id);
 		fclose(fd_instance);
-		sleep(2);
+		sleep(1);
 	}
+}
+
+pthread_t dev0_thread;
+pthread_t dev1_thread;
+pthread_t dev2_thread;
+pthread_t dev3_thread;
+
+/*!**************************************************************************************
+ @Function              setup_channel
+ @Return                void
+ @Description           Setup channels for the incoming gstreamer pipelines.
+******************************************************************************************/
+void setup_channel()
+{
+	int deviceid=-1, n=-1; // Ensure its set to dev0 by default
+	FILE *fd_instance;
+
+	/* id value is set by pipe ctrl thread to flag new video channels */
+		switch(id)
+		{
+			case 0:
+				if ((dev_fd0 = open("/dev/bccat0", O_RDWR|O_NDELAY)) != -1) 
+				{
+					/* Reset id to disallow switch cases */
+					id = -1;
+					fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
+					fprintf(fd_instance,"%d",id);
+					fclose(fd_instance);
+
+					deviceid = 0;
+					init(dev_fd0, deviceid);
+					n = pthread_create(&dev0_thread, NULL, dev_ctrl_thread, (void *)dev0);
+
+					/* Mark thread is active */
+					dev_thread_status[dev0] = 1;
+				}
+				break;
+
+			case 1:
+				if ((dev_fd1 = open("/dev/bccat1", O_RDWR|O_NDELAY)) != -1)
+				{
+					/* Reset id to disallow switch cases */
+					id = -1;
+					fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
+					fprintf(fd_instance,"%d",id);
+					fclose(fd_instance);
+
+					deviceid = 1;
+					init(dev_fd1, deviceid);
+					n = pthread_create(&dev1_thread, NULL, dev_ctrl_thread, (void *)dev1);
+
+					/* Mark thread is active */
+					dev_thread_status[dev1] = 1;
+				}
+				break;
+
+			case 2:
+				if ((dev_fd2 = open("/dev/bccat2", O_RDWR|O_NDELAY)) != -1) 
+				{
+					/* Reset id to disallow switch cases */
+					id = -1;
+					fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
+					fprintf(fd_instance,"%d",id);
+					fclose(fd_instance);
+
+					deviceid = 2;
+					init(dev_fd2, deviceid);
+					n = pthread_create(&dev2_thread, NULL, dev_ctrl_thread, (void *)dev2);
+
+					/* Mark thread is active */
+					dev_thread_status[dev2] = 1;
+				}
+				break;
+
+			case 3:
+				if ((dev_fd3 = open("/dev/bccat3", O_RDWR|O_NDELAY)) != -1)
+				{
+					/* Reset id to disallow switch cases */
+					id = -1;
+					fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
+					fprintf(fd_instance,"%d",id);
+					fclose(fd_instance);
+
+					deviceid = 3;
+					init(dev_fd3, deviceid);
+					n = pthread_create(&dev3_thread, NULL, dev_ctrl_thread, (void *)dev3);
+
+					/* Mark thread is active */
+					dev_thread_status[dev3] = 1;
+				}
+				break;
+
+			default:
+				/* Do nothing break */
+				break;
+		}
+
+
+
 }
 
 /*!**************************************************************************************
@@ -1188,14 +1119,9 @@ void * pipe_ctrl_thread()
 ******************************************************************************************/
 int main(void)
 {
-       	int n=-1;
-       	int deviceid = -1 ; // Ensure its set to dev0 by default
+	int n=-1;
 	pthread_t thread1;
 	pthread_t thread2;
-	pthread_t dev0_thread;
-	pthread_t dev1_thread;
-	pthread_t dev2_thread;
-	pthread_t dev3_thread;
 
 	/* Ensure the contents are erased and file is created if doesn't exist*/
 	FILE *fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
@@ -1216,84 +1142,8 @@ int main(void)
 
 	while(1)
 	{
-		switch(id)
-		{
-			case 0:
-				if ((dev_fd0 = open("/dev/bccat0", O_RDWR|O_NDELAY)) != -1) 
-				{
-					/* Reset id to disallow switch cases */
-					id = -1;
-					fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
-					fprintf(fd_instance,"%d",id);
-					fclose(fd_instance);
-
-					deviceid = 0;
-					init(dev_fd0, deviceid);
-					n = pthread_create(&dev0_thread, NULL, dev0_ctrl_thread, NULL);
-
-					/* Mark thread is active */
-					dev_thread_status[dev0] = 1;
-				}
-				break;
-
-			case 1:
-				if ((dev_fd1 = open("/dev/bccat1", O_RDWR|O_NDELAY)) != -1)
-				{
-					/* Reset id to disallow switch cases */
-					id = -1;
-					fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
-					fprintf(fd_instance,"%d",id);
-					fclose(fd_instance);
-
-					deviceid = 1;
-					init(dev_fd1, deviceid);
-					n = pthread_create(&dev1_thread, NULL, dev1_ctrl_thread, NULL);
-
-					/* Mark thread is active */
-					dev_thread_status[dev1] = 1;
-				}
-				break;
-
-			case 2:
-				if ((dev_fd2 = open("/dev/bccat2", O_RDWR|O_NDELAY)) != -1) 
-				{
-					/* Reset id to disallow switch cases */
-					id = -1;
-					fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
-					fprintf(fd_instance,"%d",id);
-					fclose(fd_instance);
-
-					deviceid = 2;
-					init(dev_fd2, deviceid);
-					n = pthread_create(&dev2_thread, NULL, dev2_ctrl_thread, NULL);
-
-					/* Mark thread is active */
-					dev_thread_status[dev2] = 1;
-				}
-				break;
-
-			case 3:
-				if ((dev_fd3 = open("/dev/bccat3", O_RDWR|O_NDELAY)) != -1)
-				{
-					/* Reset id to disallow switch cases */
-					id = -1;
-					fd_instance = fopen( INSTANCEID_FIFO_NAME, "w");
-					fprintf(fd_instance,"%d",id);
-					fclose(fd_instance);
-
-					deviceid = 3;
-					init(dev_fd3, deviceid);
-					n = pthread_create(&dev3_thread, NULL, dev3_ctrl_thread, NULL);
-
-					/* Mark thread is active */
-					dev_thread_status[dev3] = 1;
-				}
-				break;
-
-			default:
-				/* Do nothing break */
-				break;
-		}
+		if(id != -1)
+			setup_channel();
 
 		/* If any of the bc_cat devices are alive render */
 		if( (dev_fd0 != -1) || (dev_fd1 != -1) || (dev_fd2 != -1)  || (dev_fd3 != -1) )
