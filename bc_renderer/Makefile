@@ -11,7 +11,8 @@ INCS     ?= -I../gst_plugin/src \
 	    -I$(GSTREAMER_SRC_DIR)/gstreamer-0.10.30	\
 	    -I$(TGTFS_PATH)/opt/gstreamer/include/glib-2.0 \
 	    -I$(TGTFS_PATH)/opt/gstreamer/lib/glib-2.0/include \
-	    -I$(TGTFS_PATH)/opt/gstreamer/include/gstreamer-0.10
+	    -I$(TGTFS_PATH)/opt/gstreamer/include/gstreamer-0.10 \
+	    -I$(GSDK_ROOT)/targetfs/XSGX/include
 
 LIB_PATH ?= -L$(GSDK_ROOT)/gfx_rel_es8.x \
             -Wl,--rpath=$(GSDK_ROOT)/gfx_rel_es8.x \
@@ -25,6 +26,12 @@ LDFLAGS  := $(LIB_PATH)
 LIBS    += -lGLESv2
 CMEM_LIB     ?= $(CMEM_DIR)/lib/cmem.a470MV
 LIBS    += $(CMEM_LIB)
+
+ifeq ($(XORG_BUILD),1)
+XLIB = -L$(GSDK_ROOT)/targetfs/XSGX/lib/ -Wl,--rpath=$(GSDK_ROOT)/targetfs/XSGX/lib/ -lX11
+LIBS    += $(XLIB)
+CFLAGS += -DXORG_BUILD
+endif
 
 TARGET = bcRenderer 
 

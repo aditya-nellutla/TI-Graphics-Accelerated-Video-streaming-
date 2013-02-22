@@ -2,8 +2,12 @@ Renderer API responsible for rendering the video using IMG Texture streaming API
 
 Note: Set "INST_DEST" in the Makefile to desirable path to install the binary on <TARGET_FILESYSTEM>.
 
-Run the following to install the binary on to the platform -
+Run the following to build install the binary on to the NULL WINDOW SYSTEM platform -
 
 -  make && make install
+
+Run the following to build and install the binary on to the X-WINDOW SYSTEM platform -
+
+-  make XORG_BUILD=1 && make install
 
 See <documentation>/README for more info.

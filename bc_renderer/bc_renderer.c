@@ -52,6 +52,13 @@
 #include <gst/gst.h>
 #include <linux/fb.h>
 #include <pthread.h>
+
+#if defined XORG_BUILD
+#include  <X11/Xlib.h>
+#include  <X11/Xatom.h>
+#include  <X11/Xutil.h>
+#endif
+
 #define GL_TEXTURE_STREAM_IMG  0x8C0D
 
 #include "gst_render_bridge.h"
@@ -126,7 +133,6 @@ int program;
 
 /* Fragment and vertex shader code */
 char* fshader_src = "\
-	uniform sampler2D sampler2d;\
 	#ifdef GL_IMG_texture_stream2\n \
 	#extension GL_IMG_texture_stream2 : enable\n \
 	#endif\n \
@@ -204,6 +210,98 @@ static void print_err(char *name)
            name, err_str[ecode-EGL_SUCCESS], ecode);
 }
 
+#if defined XORG_BUILD
+Display    *x_display=NULL;
+Window      xwin=0;
+#endif
+
+int initX()
+{
+#if defined XORG_BUILD
+   ///////  the X11 part  //////////////////////////////////////////////////////////////////
+   // in the first part the program opens a connection to the X11 window manager
+   //
+
+   x_display = XOpenDisplay ( NULL );   // open the standard display (the primary screen)
+   if ( x_display == NULL ) {
+      printf("cannot connect to X server\n");
+      return 1;
+   }
+
+//   Window root  =  DefaultRootWindow( x_display );   // get the root window (usually the whole screen)
+   long x_screen = XDefaultScreen(x_display);
+   Window root  = RootWindow(x_display, x_screen);
+   XSetWindowAttributes  swa;
+   swa.event_mask  =  ExposureMask | PointerMotionMask | KeyPressMask;
+
+   xwin  =  XCreateWindow (   // create a window with the provided parameters
+              x_display, root,
+              0, 0, 800, 480,   0,
+              CopyFromParent, InputOutput,
+              CopyFromParent, CWEventMask,
+              &swa );
+
+   XSetWindowAttributes  xattr;
+   Atom  atom;
+   int   one = 1;
+
+   xattr.override_redirect = False;
+   XChangeWindowAttributes ( x_display, xwin, CWOverrideRedirect, &xattr );
+
+#if 0
+   atom = XInternAtom ( x_display, "_NET_WM_STATE_FULLSCREEN", True );
+
+   XChangeProperty (
+      x_display, win,
+      XInternAtom ( x_display, "_NET_WM_STATE", True ),
+      XA_ATOM,  32,  PropModeReplace,
+      (unsigned char*) &atom,  1 );
+
+   XChangeProperty (
+      x_display, win,
+      XInternAtom ( x_display, "_HILDON_NON_COMPOSITED_WINDOW", True ),
+      XA_INTEGER,  32,  PropModeReplace,
+      (unsigned char*) &one,  1);
+ #endif
+   XWMHints hints;
+   hints.input = True;
+   hints.flags = InputHint;
+   XSetWMHints(x_display, xwin, &hints);
+
+   XMapWindow ( x_display , xwin );             // make the window visible on the screen
+   XStoreName ( x_display , xwin , "GL test" ); // give the window a name
+
+   //// get identifiers for the provided atom name strings
+   Atom wm_state   = XInternAtom ( x_display, "_NET_WM_STATE", False );
+   Atom fullscreen = XInternAtom ( x_display, "_NET_WM_STATE_FULLSCREEN", False );
+
+   XEvent xev;
+   memset ( &xev, 0, sizeof(xev) );
+
+   xev.type                 = ClientMessage;
+   xev.xclient.window       = xwin;
+   xev.xclient.message_type = wm_state;
+   xev.xclient.format       = 32;
+   xev.xclient.data.l[0]    = 1;
+   xev.xclient.data.l[1]    = fullscreen;
+   XSendEvent (                // send an event mask to the X-server
+      x_display,
+      DefaultRootWindow ( x_display ),
+      False,
+      SubstructureNotifyMask,
+      &xev );
+#endif
+}
+
+void deInitX()
+{
+#if defined XORG_BUILD
+   ////  cleaning up...
+   XDestroyWindow    ( x_display, xwin );
+   XCloseDisplay     ( x_display );
+#endif
+}
+
 /* Deinitialize EGL */
 void deInitEGL()
 {
@@ -223,8 +321,7 @@ int initEGL(int *surf_w, int *surf_h, int profile)
     EGLint  context_attr[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
 
     EGLint            disp_w, disp_h;
-    EGLNativeDisplayType disp_type;
-    EGLNativeWindowType  window;
+    EGLNativeWindowType  window=0;
     EGLConfig         cfgs[2];
     EGLint            n_cfgs;
     EGLint            egl_attr[] = {
@@ -243,10 +340,12 @@ int initEGL(int *surf_w, int *surf_h, int profile)
         return -1;
     }
 
-    disp_type = (EGLNativeDisplayType)EGL_DEFAULT_DISPLAY;
-    window  = 0;
 
-    dpy = eglGetDisplay(disp_type);
+    #if defined XORG_BUILD
+	    dpy = eglGetDisplay((EGLNativeDisplayType)x_display);
+    #else
+	    dpy = eglGetDisplay((EGLNativeDisplayType)EGL_DEFAULT_DISPLAY);
+    #endif
 
     if (eglInitialize(dpy, NULL, NULL) != EGL_TRUE) {
         print_err("eglInitialize");
@@ -263,7 +362,12 @@ int initEGL(int *surf_w, int *surf_h, int profile)
         goto cleanup;
     }
 
-    surface = eglCreateWindowSurface(dpy, cfgs[0], window, NULL);
+    #if defined XORG_BUILD
+	    surface = eglCreateWindowSurface(dpy, cfgs[0], xwin, NULL);
+    #else
+	    surface = eglCreateWindowSurface(dpy, cfgs[0], window, NULL);
+    #endif
+
     if (surface == EGL_NO_SURFACE) {
         print_err("eglCreateWindowSurface");
         goto cleanup;
@@ -300,6 +404,7 @@ cleanup:
     return -1;
 }
 
+
 /*!****************************************************************************
 ******************************************************************************/
 // The vertex and fragment shader OpenGL handles
@@ -313,6 +418,9 @@ GLuint m_uiVertexShader, m_uiFragShader;
 ******************************************************************************/
 int initApplication()
 {
+	#if defined XORG_BUILD
+	initX();
+	#endif
 	if (initEGL(NULL, NULL, 0)) 
 	{
         	printf("ERROR: init EGL failed\n");
@@ -415,9 +523,6 @@ int initView()
 	// Actually use the created program
 	glUseProgram(program);
 
-	// Sets the sampler2D variable to the first texture unit
-	glUniform1i(glGetUniformLocation(program, "sampler2d"), 0);
-
         // Set the variable to the first texture unit
         glUniform1i(glGetUniformLocation(program, "sTexture"), 0);
 
@@ -432,6 +537,9 @@ int initView()
 void releaseView()
 {
 	deInitEGL();
+	#if defined XORG_BUILD
+	deInitX();
+	#endif
 	
 	// Frees the OpenGL handles for the program and the 2 shaders
 	glDeleteProgram(program);
@@ -1107,9 +1215,6 @@ void setup_channel()
 				/* Do nothing break */
 				break;
 		}
-
-
-
 }
 
 /*!**************************************************************************************
