@@ -139,6 +139,11 @@ Note:	1) Users can specify any arbitrary values as parameters to bcsink in the v
 	   is associated with Quadrant-1, device-1 with Quadrant-2 and so on..
 
 
+Performance:
+===========
+
+1) Please refer performace.pptx for the comparision between bcsink vs  fbdevsink.
+
 Sample Pipelines:
 ================
 
